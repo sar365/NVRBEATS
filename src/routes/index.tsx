@@ -180,7 +180,7 @@ function RecorderPage() {
                 onClick={() => void start(settings)}
               >
                 <Circle className="size-4 fill-current" />{" "}
-                {transitioning ? STATE_LABEL[status.state].toUpperCase() : "RECORD"}
+                {transitioning ? (STATE_LABEL[status.state] ?? "").toUpperCase() : "RECORD"}
               </Button>
             )}
           </div>
