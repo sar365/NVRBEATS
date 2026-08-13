@@ -1,4 +1,4 @@
-# DJ Set Recorder — UI, State Machine & Native Bridge
+- DJ Set Recorder — UI, State Machine & Native Bridge
 
 Build the control-center frontend for a Windows desktop recorder. All real audio work (WASAPI loopback, tray, disk writing) stays behind an explicit native boundary — no browser audio capture, no cloud, no auth, no AI.
 
