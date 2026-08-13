@@ -29,7 +29,7 @@ function emptyStatus(): RecordingStatus {
     durationSec: 0,
     fileSizeBytes: 0,
     path: null,
-    device: MOCK_DEVICES[0],
+    device: MOCK_DEVICES[0] ?? null,
     error: null,
     deviceChange: null,
     recovery: null,
