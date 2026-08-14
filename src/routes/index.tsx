@@ -4,11 +4,9 @@ import { Circle, Square, CheckCircle2, Bug } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { DeviceStatus } from "@/components/DeviceStatus";
 import { LevelMeters } from "@/components/LevelMeters";
-import {
-  DeviceChangedPanel,
-  ErrorPanel,
-  RecoveryPanel,
-} from "@/components/ErrorPanels";
+import { DeviceChangedPanel, ErrorPanel } from "@/components/ErrorPanels";
+import { RecoveryFlow } from "@/components/RecoveryFlow";
+
 import { Button } from "@/components/ui/button";
 import { useRecorder } from "@/hooks/useRecorder";
 import { useRecordings } from "@/hooks/useRecordings";
@@ -56,6 +54,8 @@ function RecorderPage() {
   const { save } = useRecordings();
   const [device, setDevice] = useState<OutputDevice | null>(null);
   const [uiSeconds, setUiSeconds] = useState(0);
+  const [dismissedRecovery, setDismissedRecovery] = useState<string | null>(null);
+
 
   useEffect(() => {
     void bridge.getDefaultOutputDevice().then(setDevice);
@@ -108,14 +108,23 @@ function RecorderPage() {
         {status.deviceChange ? (
           <DeviceChangedPanel change={status.deviceChange} onDismiss={acknowledge} />
         ) : null}
-        {status.recovery ? (
-          <RecoveryPanel
+        {status.recovery && dismissedRecovery !== status.recovery.path ? (
+          <RecoveryFlow
             recovery={status.recovery}
-            onRecover={() => void bridge.recoverRecording().then(refresh)}
-            onDelete={() => void bridge.discardRecovery().then(refresh)}
+            onRepair={async () => {
+              await bridge.recoverRecording();
+              await refresh();
+            }}
+            onDiscard={async () => {
+              await bridge.discardRecovery();
+              await refresh();
+            }}
             onOpenFolder={() => void bridge.openRecordingFolder(status.recovery?.path)}
+            onDismiss={() => setDismissedRecovery(status.recovery?.path ?? null)}
           />
         ) : null}
+
+
 
         <section className="rounded-xl border border-border bg-surface p-6">
           <div className="flex items-center justify-between">
