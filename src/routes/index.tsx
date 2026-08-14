@@ -109,13 +109,21 @@ function RecorderPage() {
           <DeviceChangedPanel change={status.deviceChange} onDismiss={acknowledge} />
         ) : null}
         {status.recovery ? (
-          <RecoveryPanel
+          <RecoveryFlow
             recovery={status.recovery}
-            onRecover={() => void bridge.recoverRecording().then(refresh)}
-            onDelete={() => void bridge.discardRecovery().then(refresh)}
+            onRepair={async () => {
+              await bridge.recoverRecording();
+              await refresh();
+            }}
+            onDiscard={async () => {
+              await bridge.discardRecovery();
+              await refresh();
+            }}
             onOpenFolder={() => void bridge.openRecordingFolder(status.recovery?.path)}
+            onDismiss={acknowledge}
           />
         ) : null}
+
 
         <section className="rounded-xl border border-border bg-surface p-6">
           <div className="flex items-center justify-between">
