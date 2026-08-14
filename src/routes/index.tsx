@@ -54,6 +54,8 @@ function RecorderPage() {
   const { save } = useRecordings();
   const [device, setDevice] = useState<OutputDevice | null>(null);
   const [uiSeconds, setUiSeconds] = useState(0);
+  const [dismissedRecovery, setDismissedRecovery] = useState<string | null>(null);
+
 
   useEffect(() => {
     void bridge.getDefaultOutputDevice().then(setDevice);
