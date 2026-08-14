@@ -4,11 +4,9 @@ import { Circle, Square, CheckCircle2, Bug } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { DeviceStatus } from "@/components/DeviceStatus";
 import { LevelMeters } from "@/components/LevelMeters";
-import {
-  DeviceChangedPanel,
-  ErrorPanel,
-  RecoveryPanel,
-} from "@/components/ErrorPanels";
+import { DeviceChangedPanel, ErrorPanel } from "@/components/ErrorPanels";
+import { RecoveryFlow } from "@/components/RecoveryFlow";
+
 import { Button } from "@/components/ui/button";
 import { useRecorder } from "@/hooks/useRecorder";
 import { useRecordings } from "@/hooks/useRecordings";
