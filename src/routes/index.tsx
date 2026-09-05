@@ -77,6 +77,42 @@ function RecorderPage() {
   const transitioning =
     status.state === "STARTING" || status.state === "STOPPING" || status.state === "FINALIZING";
 
+  // Keyboard shortcuts: R record, S stop, M minimize/restore.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+      )
+        return;
+      const key = e.key.toLowerCase();
+      if (key === "r" && !recording && !transitioning) {
+        e.preventDefault();
+        void start(settings);
+      } else if (key === "s" && recording) {
+        e.preventDefault();
+        void handleStop();
+      } else if (key === "m") {
+        e.preventDefault();
+        setMinimized((prev) => {
+          void (prev ? bridge.restoreWindow() : bridge.minimizeWindow());
+          if (!isNativeRuntime()) {
+            toast.message(prev ? "Window restored" : "Minimized to tray", {
+              description: "Recording keeps running in the background.",
+            });
+          }
+          return !prev;
+        });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording, transitioning, settings, bridge, start]);
+
   async function handleStop() {
     const final = await stop();
     if (!final) return;
