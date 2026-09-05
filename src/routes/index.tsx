@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Circle, Square, CheckCircle2, Bug } from "lucide-react";
+import { Circle, Square, CheckCircle2, Bug, Keyboard } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { DeviceStatus } from "@/components/DeviceStatus";
 import { LevelMeters } from "@/components/LevelMeters";
 import { DeviceChangedPanel, ErrorPanel } from "@/components/ErrorPanels";
 import { RecoveryFlow } from "@/components/RecoveryFlow";
+import { TrimDialog, type TrimResult } from "@/components/TrimDialog";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { useRecorder } from "@/hooks/useRecorder";
@@ -14,7 +16,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { formatBytes, formatDuration, formatSpec } from "@/lib/format";
 import { renderFilename } from "@/lib/store/settings";
 import { isNativeRuntime, mockBridge } from "@/lib/native";
-import type { OutputDevice, RecordingMeta } from "@/lib/native/types";
+import type { OutputDevice, RecordingMeta, RecordingStatus } from "@/lib/native/types";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -50,11 +52,13 @@ const STATE_LABEL: Record<string, string> = {
 
 function RecorderPage() {
   const { settings } = useSettings();
-  const { status, levels, start, stop, acknowledge, bridge, refresh } = useRecorder();
+  const { status, levels, inputLevels, start, stop, acknowledge, bridge, refresh } = useRecorder();
   const { save } = useRecordings();
   const [device, setDevice] = useState<OutputDevice | null>(null);
   const [uiSeconds, setUiSeconds] = useState(0);
   const [dismissedRecovery, setDismissedRecovery] = useState<string | null>(null);
+  const [pendingFinal, setPendingFinal] = useState<RecordingStatus | null>(null);
+  const [trimBusy, setTrimBusy] = useState(false);
 
 
   useEffect(() => {
@@ -76,20 +80,48 @@ function RecorderPage() {
   async function handleStop() {
     const final = await stop();
     if (!final) return;
+    setPendingFinal(final);
+  }
+
+  async function finalize(trim: TrimResult | null) {
+    const final = pendingFinal;
+    if (!final) return;
+    let durationSec = final.durationSec;
+    let fileSizeBytes = final.fileSizeBytes;
+    let filepath = final.path;
+
+    if (trim) {
+      setTrimBusy(true);
+      try {
+        const trimmed = await bridge.trimRecording({
+          path: final.path ?? "",
+          startSec: trim.startSec,
+          endSec: trim.endSec,
+        });
+        durationSec = trimmed.durationSec;
+        fileSizeBytes = trimmed.fileSizeBytes;
+        filepath = trimmed.path;
+      } catch (error) {
+        toast.error("The recording could not be trimmed.", { description: String(error) });
+      } finally {
+        setTrimBusy(false);
+      }
+    }
+
     const now = new Date();
     const filename = renderFilename(settings.filenameTemplate, {}, settings.format);
     const meta: RecordingMeta = {
       id: crypto.randomUUID(),
       filename,
-      filepath: final.path ?? `${settings.folder}\\${filename}`,
+      filepath: filepath ?? `${settings.folder}\\${filename}`,
       artist: "",
       set_name: filename.replace(/\.[^.]+$/, ""),
       date: now.toISOString().slice(0, 10),
-      duration: Math.round(final.durationSec),
+      duration: Math.round(durationSec),
       format: settings.format,
       sample_rate: settings.sampleRate,
       bit_depth: settings.bitDepth,
-      file_size: final.fileSizeBytes,
+      file_size: fileSizeBytes,
       genre: "",
       location: "",
       notes: "",
@@ -99,10 +131,19 @@ function RecorderPage() {
       updated_at: now.toISOString(),
     };
     save(meta);
+    setPendingFinal(null);
+    toast.success(trim ? "Trimmed recording saved to your library." : "Recording saved to your library.");
   }
 
   return (
     <AppShell>
+      <TrimDialog
+        open={pendingFinal !== null}
+        durationSec={pendingFinal?.durationSec ?? 0}
+        busy={trimBusy}
+        onCancel={() => void finalize(null)}
+        onConfirm={(trim) => void finalize(trim)}
+      />
       <div className="space-y-4">
         {status.error ? <ErrorPanel error={status.error} onDismiss={acknowledge} /> : null}
         {status.deviceChange ? (
@@ -145,8 +186,9 @@ function RecorderPage() {
             <DeviceStatus device={status.device ?? device} />
           </div>
 
-          <div className="mt-6">
-            <LevelMeters levels={levels} />
+          <div className="mt-6 space-y-5">
+            <LevelMeters levels={inputLevels} title="Input Levels (live preview)" />
+            <LevelMeters levels={levels} title="Output Levels (being recorded)" />
           </div>
 
           <div className="mt-8 text-center">
@@ -211,6 +253,32 @@ function RecorderPage() {
             Traktor Pro 4 → Windows Audio → PC Default Output → WASAPI Loopback → Local Recorder →
             WAV. Nothing is uploaded, and no microphone is used.
           </p>
+        </section>
+
+        <section className="rounded-xl border border-border bg-surface p-5">
+          <h2 className="label-caps flex items-center gap-2">
+            <Keyboard className="size-3.5" /> Keyboard Shortcuts
+          </h2>
+          <ul className="mt-3 grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
+            <li>
+              <kbd className="rounded border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[11px]">
+                R
+              </kbd>{" "}
+              Start recording
+            </li>
+            <li>
+              <kbd className="rounded border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[11px]">
+                S
+              </kbd>{" "}
+              Stop recording
+            </li>
+            <li>
+              <kbd className="rounded border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[11px]">
+                M
+              </kbd>{" "}
+              Minimize / restore window
+            </li>
+          </ul>
         </section>
 
         {!isNativeRuntime() ? <DevSimulationPanel onChange={refresh} /> : null}
