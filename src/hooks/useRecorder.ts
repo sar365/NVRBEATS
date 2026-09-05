@@ -28,6 +28,11 @@ export function useRecorder() {
   const bridge = getBridge();
   const [status, setStatus] = useState<RecordingStatus>(IDLE_STATUS);
   const [levels, setLevels] = useState<AudioLevels>({ left: 0, right: 0, mock: !bridge.isNative });
+  const [inputLevels, setInputLevels] = useState<AudioLevels>({
+    left: 0,
+    right: 0,
+    mock: !bridge.isNative,
+  });
   const busy = useRef(false);
 
   const poll = useCallback(async () => {
@@ -55,16 +60,17 @@ export function useRecorder() {
 
   const recording = status.state === "RECORDING";
 
+  // Meters run continuously: the input meter shows the live preview signal even
+  // before recording starts, the output meter shows what is being written.
   useEffect(() => {
-    if (!recording) {
-      setLevels({ left: 0, right: 0, mock: !bridge.isNative });
-      return;
-    }
-    const id = window.setInterval(() => {
+    const tick = () => {
       void bridge.getAudioLevels().then(setLevels);
-    }, 66);
+      void bridge.getInputAudioLevels().then(setInputLevels);
+    };
+    tick();
+    const id = window.setInterval(tick, 66);
     return () => window.clearInterval(id);
-  }, [bridge, recording]);
+  }, [bridge]);
 
   const start = useCallback(
     async (settings: RecordingSettings) => {
@@ -117,5 +123,5 @@ export function useRecorder() {
     setStatus((prev) => ({ ...prev, state: "READY", error: null, deviceChange: null }));
   }, []);
 
-  return { bridge, status, levels, start, stop, acknowledge, refresh: poll };
+  return { bridge, status, levels, inputLevels, start, stop, acknowledge, refresh: poll };
 }

@@ -29,14 +29,20 @@ function Meter({ channel, value }: { channel: "L" | "R"; value: number }) {
   );
 }
 
-export function LevelMeters({ levels }: { levels: AudioLevels }) {
+export function LevelMeters({
+  levels,
+  title = "Output Levels",
+}: {
+  levels: AudioLevels;
+  title?: string;
+}) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="label-caps">Output Levels</span>
+        <span className="label-caps">{title}</span>
         {levels.mock ? (
           <span className="text-[10px] uppercase tracking-widest text-warn">
-            Development Mock Audio Levels
+            Preview Signal — Simulated
           </span>
         ) : null}
       </div>

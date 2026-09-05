@@ -140,7 +140,8 @@ class MockNativeAudioBridge implements NativeAudioBridge {
 
   async chooseRecordingFolder() {
     notNative("chooseRecordingFolder");
-    return null;
+    // Simulation only: pretend the user picked a folder so the flow is previewable.
+    return "C:\\Users\\DJ\\Music\\DJ Sets\\Exports";
   }
 
   async playRecording() {
