@@ -31,9 +31,11 @@ import type {
   AudioLevels,
   ConversionRequest,
   DiskSpace,
+  ExportRequest,
   OutputDevice,
   RecordingSettings,
   RecordingStatus,
+  TrimRequest,
 } from "./types";
 
 type Invoke = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -66,6 +68,7 @@ export class TauriAudioBridge implements NativeAudioBridge {
   getRecordingFileSize = () => this.call<number>("get_recording_file_size");
   getRecordingPath = () => this.call<string | null>("get_recording_path");
   getAudioLevels = () => this.call<AudioLevels>("get_audio_levels");
+  getInputAudioLevels = () => this.call<AudioLevels>("get_input_audio_levels");
 
   getDiskSpace = () => this.call<DiskSpace>("get_disk_space");
   recoverRecording = () => this.call<RecordingStatus>("recover_recording");
@@ -77,4 +80,12 @@ export class TauriAudioBridge implements NativeAudioBridge {
   convertRecording = (request: ConversionRequest) =>
     this.call<{ outputPath: string }>("convert_recording", { request });
   deleteRecordingFile = (path: string) => this.call<void>("delete_recording_file", { path });
+  trimRecording = (request: TrimRequest) =>
+    this.call<{ path: string; durationSec: number; fileSizeBytes: number }>("trim_recording", {
+      request,
+    });
+  exportRecording = (request: ExportRequest) =>
+    this.call<{ outputPath: string }>("export_recording", { request });
+  minimizeWindow = () => this.call<void>("minimize_window");
+  restoreWindow = () => this.call<void>("restore_window");
 }
