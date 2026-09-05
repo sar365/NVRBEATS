@@ -59,6 +59,7 @@ function RecorderPage() {
   const [dismissedRecovery, setDismissedRecovery] = useState<string | null>(null);
   const [pendingFinal, setPendingFinal] = useState<RecordingStatus | null>(null);
   const [trimBusy, setTrimBusy] = useState(false);
+  const [minimized, setMinimized] = useState(false);
 
 
   useEffect(() => {
