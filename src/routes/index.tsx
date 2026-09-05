@@ -313,7 +313,7 @@ function RecorderPage() {
               <kbd className="rounded border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[11px]">
                 M
               </kbd>{" "}
-              Minimize / restore window
+              {minimized ? "Restore window" : "Minimize to tray"}
             </li>
           </ul>
         </section>
