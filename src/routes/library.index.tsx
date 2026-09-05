@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { FolderOpen, Pencil, Play, Search, Trash2 } from "lucide-react";
+import { FolderOpen, Pencil, Play, Search, Share, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { useRecordings } from "@/hooks/useRecordings";
 import { formatBytes, formatDate, formatDuration } from "@/lib/format";
 import { getBridge } from "@/lib/native";
 import { playRecording } from "@/lib/player";
+import { exportRecording } from "@/lib/export";
 
 export const Route = createFileRoute("/library/")({
   head: () => ({
@@ -103,6 +104,10 @@ function LibraryPage() {
               <p className="text-xs text-muted-foreground">
                 {r.artist || "Unknown artist"} • {formatDate(r.date)} • {r.genre || "No genre"}
               </p>
+              <p className="tnum mt-0.5 font-mono text-[11px] text-muted-foreground">
+                {formatDuration(r.duration)} • {r.sample_rate / 1000} kHz • {r.bit_depth}-bit •{" "}
+                {formatBytes(r.file_size)}
+              </p>
             </div>
             <div className="tnum text-right font-mono text-xs text-muted-foreground">
               <div>{formatDuration(r.duration)}</div>
@@ -121,6 +126,14 @@ function LibraryPage() {
                 <Link to="/library/$id" params={{ id: r.id }}>
                   <Pencil className="size-4" />
                 </Link>
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Export"
+                onClick={() => void exportRecording(r)}
+              >
+                <Share className="size-4" />
               </Button>
               <Button
                 size="icon"
