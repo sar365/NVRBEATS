@@ -85,7 +85,7 @@ export function TrimDialog({
               step={1}
               value={start}
               onChange={(e) => setStart(Math.min(Number(e.target.value), end - 1))}
-              className="w-full accent-[hsl(var(--signal))]"
+              className="w-full accent-signal"
             />
           </div>
 
@@ -99,7 +99,7 @@ export function TrimDialog({
               step={1}
               value={end}
               onChange={(e) => setEnd(Math.max(Number(e.target.value), start + 1))}
-              className="w-full accent-[hsl(var(--signal))]"
+              className="w-full accent-signal"
             />
           </div>
 
