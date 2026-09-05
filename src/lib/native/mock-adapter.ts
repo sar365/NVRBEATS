@@ -12,9 +12,11 @@ import type {
   AudioLevels,
   ConversionRequest,
   DiskSpace,
+  ExportRequest,
   OutputDevice,
   RecordingSettings,
   RecordingStatus,
+  TrimRequest,
 } from "./types";
 
 const MOCK_DEVICES: OutputDevice[] = [
@@ -106,6 +108,18 @@ class MockNativeAudioBridge implements NativeAudioBridge {
     };
   }
 
+  /** Development Mock preview levels for the input meter (synthetic). */
+  async getInputAudioLevels(): Promise<AudioLevels> {
+    const t = Date.now() / 1000;
+    const base = this.status.state === "RECORDING" ? 0.68 : 0.34;
+    const pulse = base + 0.16 * Math.sin(t * 2.3) + 0.07 * Math.sin(t * 9.4);
+    return {
+      left: clamp(pulse + 0.04 * Math.cos(t * 5.5)),
+      right: clamp(pulse + 0.04 * Math.sin(t * 4.7)),
+      mock: true,
+    };
+  }
+
   async getDiskSpace(): Promise<DiskSpace> {
     return { freeBytes: 214_000_000_000, totalBytes: 1_000_000_000_000 };
   }
@@ -126,7 +140,8 @@ class MockNativeAudioBridge implements NativeAudioBridge {
 
   async chooseRecordingFolder() {
     notNative("chooseRecordingFolder");
-    return null;
+    // Simulation only: pretend the user picked a folder so the flow is previewable.
+    return "C:\\Users\\DJ\\Music\\DJ Sets\\Exports";
   }
 
   async playRecording() {
@@ -140,6 +155,26 @@ class MockNativeAudioBridge implements NativeAudioBridge {
 
   async deleteRecordingFile() {
     notNative("deleteRecordingFile");
+  }
+
+  async trimRecording(request: TrimRequest) {
+    await delay(500);
+    const durationSec = Math.max(0, request.endSec - request.startSec);
+    return { path: request.path, durationSec, fileSizeBytes: Math.round(durationSec * 288_000) };
+  }
+
+  async exportRecording(request: ExportRequest) {
+    await delay(700);
+    const name = request.filepath.split(/[\\/]/).pop() ?? "recording.wav";
+    return { outputPath: `${request.destinationFolder}\\${name}` };
+  }
+
+  async minimizeWindow() {
+    notNative("minimizeWindow");
+  }
+
+  async restoreWindow() {
+    notNative("restoreWindow");
   }
 
   /** Simulate-only helpers used by the labelled Development Mode controls. */

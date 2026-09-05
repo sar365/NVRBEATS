@@ -17,8 +17,10 @@ import type {
   ConversionRequest,
   DiskSpace,
   OutputDevice,
+  ExportRequest,
   RecordingSettings,
   RecordingStatus,
+  TrimRequest,
 } from "./types";
 
 export interface NativeAudioBridge {
@@ -38,6 +40,8 @@ export interface NativeAudioBridge {
   getRecordingFileSize(): Promise<number>;
   getRecordingPath(): Promise<string | null>;
   getAudioLevels(): Promise<AudioLevels>;
+  /** Live input (capture-side) preview levels, available even before recording. */
+  getInputAudioLevels(): Promise<AudioLevels>;
 
   getDiskSpace(): Promise<DiskSpace>;
   recoverRecording(): Promise<RecordingStatus>;
@@ -48,4 +52,11 @@ export interface NativeAudioBridge {
   playRecording(path: string): Promise<void>;
   convertRecording(request: ConversionRequest): Promise<{ outputPath: string }>;
   deleteRecordingFile(path: string): Promise<void>;
+  /** Trim the finalized file to the chosen start/end points (native, lossless cut). */
+  trimRecording(request: TrimRequest): Promise<{ path: string; durationSec: number; fileSizeBytes: number }>;
+  /** Copy a recording to a folder the user picked. */
+  exportRecording(request: ExportRequest): Promise<{ outputPath: string }>;
+  /** Window control for keyboard shortcuts (native tray/window). */
+  minimizeWindow(): Promise<void>;
+  restoreWindow(): Promise<void>;
 }

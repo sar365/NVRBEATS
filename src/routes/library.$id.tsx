@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, FileAudio2, FolderOpen, Pencil, Play, Repeat } from "lucide-react";
+import { ArrowLeft, FileAudio2, FolderOpen, Pencil, Play, Repeat, Share } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ import { formatBytes, formatDate, formatDuration } from "@/lib/format";
 import { getBridge } from "@/lib/native";
 import type { AudioFormat, RecordingMeta } from "@/lib/native/types";
 import { playRecording } from "@/lib/player";
+import { exportRecording } from "@/lib/export";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/library/$id")({
@@ -100,6 +101,9 @@ function DetailPage() {
             onClick={() => void bridge.openRecordingFolder(recording.filepath)}
           >
             <FolderOpen className="size-3.5" /> Open Folder
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => void exportRecording(recording)}>
+            <Share className="size-3.5" /> Export
           </Button>
           <ConvertDialog recording={recording} />
         </div>

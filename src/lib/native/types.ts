@@ -140,3 +140,15 @@ export interface ConversionRequest {
   format: AudioFormat;
   quality: "HIGH" | "STANDARD" | "SMALL";
 }
+
+export interface TrimRequest {
+  path: string;
+  startSec: number;
+  endSec: number;
+}
+
+export interface ExportRequest {
+  recordingId: string;
+  filepath: string;
+  destinationFolder: string;
+}
