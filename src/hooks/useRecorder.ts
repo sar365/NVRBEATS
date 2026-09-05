@@ -58,7 +58,7 @@ export function useRecorder() {
     return () => window.clearInterval(id);
   }, [poll]);
 
-  const recording = status.state === "RECORDING";
+  
 
   // Meters run continuously: the input meter shows the live preview signal even
   // before recording starts, the output meter shows what is being written.
