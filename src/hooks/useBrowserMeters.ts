@@ -65,7 +65,7 @@ export function useBrowserMeters() {
         stream.getTracks().forEach((t) => t.stop());
         void context.close();
       };
-      stream.getAudioTracks()[0].addEventListener("ended", () => stop());
+      stream.getAudioTracks()[0]?.addEventListener("ended", () => stop());
       setStatus("live");
     } catch {
       setStatus("denied");
@@ -78,7 +78,7 @@ export function useBrowserMeters() {
 function peak(buffer: Float32Array): number {
   let max = 0;
   for (let i = 0; i < buffer.length; i += 1) {
-    const value = Math.abs(buffer[i]);
+    const value = Math.abs(buffer[i] ?? 0);
     if (value > max) max = value;
   }
   return Math.min(1, max);
