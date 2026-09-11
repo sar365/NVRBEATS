@@ -86,6 +86,7 @@ export class TauriAudioBridge implements NativeAudioBridge {
     });
   exportRecording = (request: ExportRequest) =>
     this.call<{ outputPath: string }>("export_recording", { request });
+  syncSettings = (settings: RecordingSettings) => this.call<void>("set_settings", { settings });
   minimizeWindow = () => this.call<void>("minimize_window");
   restoreWindow = () => this.call<void>("restore_window");
 }

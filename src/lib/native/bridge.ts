@@ -56,6 +56,8 @@ export interface NativeAudioBridge {
   trimRecording(request: TrimRequest): Promise<{ path: string; durationSec: number; fileSizeBytes: number }>;
   /** Copy a recording to a folder the user picked. */
   exportRecording(request: ExportRequest): Promise<{ outputPath: string }>;
+  /** Push the current settings down so tray-started recordings match the UI. */
+  syncSettings?(settings: RecordingSettings): Promise<void>;
   /** Window control for keyboard shortcuts (native tray/window). */
   minimizeWindow(): Promise<void>;
   restoreWindow(): Promise<void>;
