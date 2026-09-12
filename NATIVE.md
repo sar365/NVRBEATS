@@ -50,3 +50,29 @@ only while recording.
 
 The recorder never controls or inspects Traktor. It only records what Windows sends
 to the default playback device.
+
+## The native engine is now implemented (`src-tauri/`)
+
+| File | Responsibility |
+| --- | --- |
+| `src/capture.rs` | WASAPI loopback capture of the Windows default output, always-on peak meters, bounded queue, background WAV writer thread writing `<name>.part` |
+| `src/wav.rs` | Sample-accurate trim of the real WAV file, export (copy) to a chosen folder, crash-recovery repair of a `.part` file |
+| `src/devices.rs` | Default-output detection and endpoint enumeration |
+| `src/disk.rs` | Free/total space on the recording volume |
+| `src/tray.rs` | System tray: start, stop, reopen the window, quit — recording continues while the window is closed |
+| `src/commands.rs` | The exact command surface the frontend `NativeAudioBridge` calls |
+| `src/lib.rs` | App setup, state machine wiring, crash-recovery scan on launch, close-to-tray |
+
+### Build and test on Windows
+
+1. Install Rust (`https://rustup.rs`), the Tauri CLI (`cargo install tauri-cli --version "^2"`), and the WebView2 runtime.
+2. `bun install`
+3. Dev run: `bun run desktop:dev` — opens the desktop window against the Vite dev server.
+4. Installer: `bun run desktop:build` — produces MSI/NSIS in `src-tauri/target/release/bundle/`.
+
+### Testing against a real Traktor set
+
+1. In Traktor Pro 4, set the audio device to the Windows default output (WASAPI/DirectSound, not exclusive-mode ASIO — exclusive mode bypasses the loopback tap).
+2. Launch DJ Set Recorder; the input meter should move as soon as Traktor plays.
+3. Press Record, play at least a few minutes, close the window (it keeps recording in the tray), then Stop from the tray.
+4. Confirm the WAV in the recording folder plays back in full and the library shows the real duration, sample rate and size.

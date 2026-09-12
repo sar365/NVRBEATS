@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { useRecorder } from "@/hooks/useRecorder";
+import { useBrowserMeters } from "@/hooks/useBrowserMeters";
 import { useRecordings } from "@/hooks/useRecordings";
 import { useSettings } from "@/hooks/useSettings";
 import { formatBytes, formatDuration, formatSpec } from "@/lib/format";
@@ -54,6 +55,7 @@ function RecorderPage() {
   const { settings } = useSettings();
   const { status, levels, inputLevels, start, stop, acknowledge, bridge, refresh } = useRecorder();
   const { save } = useRecordings();
+  const preview = useBrowserMeters();
   const [device, setDevice] = useState<OutputDevice | null>(null);
   const [uiSeconds, setUiSeconds] = useState(0);
   const [dismissedRecovery, setDismissedRecovery] = useState<string | null>(null);
@@ -224,8 +226,37 @@ function RecorderPage() {
           </div>
 
           <div className="mt-6 space-y-5">
-            <LevelMeters levels={inputLevels} title="Input Levels (live preview)" />
+            <LevelMeters
+              levels={preview.status === "live" ? preview.levels : inputLevels}
+              title={
+                preview.status === "live"
+                  ? "Input Levels (live system audio)"
+                  : "Input Levels (live preview)"
+              }
+            />
             <LevelMeters levels={levels} title="Output Levels (being recorded)" />
+            {!isNativeRuntime() ? (
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                {preview.status === "live" ? (
+                  <Button size="sm" variant="secondary" onClick={preview.stop}>
+                    Stop live levels
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="secondary" onClick={() => void preview.start()}>
+                    Show live levels from this computer
+                  </Button>
+                )}
+                <span>
+                  {preview.status === "live"
+                    ? "Reading the audio you shared. Nothing is being recorded here."
+                    : preview.status === "denied"
+                      ? "No audio was shared — pick a tab or screen and tick “Share audio”."
+                      : preview.status === "unsupported"
+                        ? "This browser cannot read computer audio."
+                        : "Preview only. The Windows app reads your PC output directly."}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-8 text-center">
