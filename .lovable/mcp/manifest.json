@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "sdk_version": "2.0.4",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "traktor-companion",
+      "version": "0.1.0",
+      "title": "Traktor Companion"
+    },
+    "tools": [
+      {
+        "name": "get_capture_setup",
+        "title": "Get capture setup steps",
+        "description": "Step-by-step setup for recording a Traktor Pro 4 set through the Windows default output using WASAPI loopback.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_recorder_capabilities",
+        "title": "Get recorder capabilities",
+        "description": "What DJ Set Recorder can do: capture method, supported formats and rates, features, and recorder states.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "troubleshoot_recording",
+        "title": "Troubleshoot a recording problem",
+        "description": "Guidance for common DJ Set Recorder problems: silent recordings, dead meters, dropouts, device changes, crashes, or a missing file.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "symptom": {
+              "type": "string",
+              "enum": [
+                "silence",
+                "no_meters",
+                "crackles",
+                "device_changed",
+                "crash",
+                "file_missing"
+              ],
+              "description": "The problem the user is seeing."
+            }
+          },
+          "required": [
+            "symptom"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
