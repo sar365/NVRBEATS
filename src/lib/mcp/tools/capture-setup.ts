@@ -1,5 +1,4 @@
 import { defineTool } from "@lovable.dev/mcp-js";
-import { z } from "zod";
 
 const STEPS = [
   "In Windows, set the output you actually listen through (speakers or interface) as the Default Device under Sound settings.",
