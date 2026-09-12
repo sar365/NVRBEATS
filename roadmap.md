@@ -7,7 +7,7 @@
 - [ ] Real browser audio capture for preview meters (before the Windows engine exists)
 
 ## Next
-- [ ] Add agent integrations (MCP server) to this app
+- [ ] Add agent integrations (MCP server) to this app — public tools chosen; sign-in protection would require adding user accounts first
 
 ## Needs the user's Windows machine
 - [ ] Build the desktop app and test against a real Traktor set
