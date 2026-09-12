@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { useRecorder } from "@/hooks/useRecorder";
+import { useBrowserMeters } from "@/hooks/useBrowserMeters";
 import { useRecordings } from "@/hooks/useRecordings";
 import { useSettings } from "@/hooks/useSettings";
 import { formatBytes, formatDuration, formatSpec } from "@/lib/format";
@@ -54,6 +55,7 @@ function RecorderPage() {
   const { settings } = useSettings();
   const { status, levels, inputLevels, start, stop, acknowledge, bridge, refresh } = useRecorder();
   const { save } = useRecordings();
+  const preview = useBrowserMeters();
   const [device, setDevice] = useState<OutputDevice | null>(null);
   const [uiSeconds, setUiSeconds] = useState(0);
   const [dismissedRecovery, setDismissedRecovery] = useState<string | null>(null);
