@@ -70,6 +70,17 @@ to the default playback device.
 3. Dev run: `bun run desktop:dev` — opens the desktop window against the Vite dev server.
 4. Installer: `bun run desktop:build` — produces MSI/NSIS in `src-tauri/target/release/bundle/`.
 
+The desktop build runs `bun run desktop:web` first: it builds the frontend and then
+renders the start page once into a static `dist/client/index.html`, because the
+desktop app loads the UI from disk and has no Node server.
+
+Verified in CI-style checks on Linux: `cargo check` for the host target and
+`cargo check --target x86_64-pc-windows-gnu` (which type-checks the WASAPI
+loopback code) both pass, and the static `dist/client/index.html` hydrates with
+no console errors. The final MSVC build and the real Traktor run must happen on
+the Windows machine.
+
+
 ### Testing against a real Traktor set
 
 1. In Traktor Pro 4, set the audio device to the Windows default output (WASAPI/DirectSound, not exclusive-mode ASIO — exclusive mode bypasses the loopback tap).
