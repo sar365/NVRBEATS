@@ -264,7 +264,7 @@ fn run_loopback(engine: &Arc<Engine>) -> Result<(), String> {
 
     loop {
         capture_client
-            .read_from_device_to_deque(block_align, &mut queue)
+            .read_from_device_to_deque(&mut queue)
             .map_err(|e| e.to_string())?;
 
         let frames = queue.len() / block_align;

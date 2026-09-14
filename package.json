@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "tauri": "cargo tauri",
-    "desktop:web": "vite build && node scripts/make-desktop-index.mjs",
+    "desktop:web": "vite build && bun scripts/make-desktop-index.mjs",
     "desktop:dev": "cargo tauri dev",
     "desktop:build": "cargo tauri build"
   },

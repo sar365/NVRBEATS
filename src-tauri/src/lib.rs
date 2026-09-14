@@ -7,6 +7,7 @@
 pub mod capture;
 pub mod commands;
 pub mod devices;
+pub mod disk;
 pub mod state;
 pub mod tray;
 pub mod wav;
