@@ -65,25 +65,13 @@ to the default playback device.
 
 ### Build and test on Windows
 
-1. Install Rust (`https://rustup.rs`), the Tauri CLI (`cargo install tauri-cli --version "^2"`), and the WebView2 runtime.
-2. `bun install`
-3. Dev run: `bun run desktop:dev` — opens the desktop window against the Vite dev server.
-4. Installer: `bun run desktop:build` — produces MSI/NSIS in `src-tauri/target/release/bundle/`.
-
-The desktop build runs `bun run desktop:web` first: it builds the frontend and then
-renders the start page once into a static `dist/client/index.html`, because the
-desktop app loads the UI from disk and has no Node server.
+See **[docs/WINDOWS-SETUP.md](docs/WINDOWS-SETUP.md)** for the full walkthrough:
+one-time setup (Bun, Rust, C++ Build Tools, WebView2), `bun run desktop:dev` /
+`bun run desktop:build`, Traktor audio configuration, the real-set test checklist,
+and troubleshooting.
 
 Verified in CI-style checks on Linux: `cargo check` for the host target and
 `cargo check --target x86_64-pc-windows-gnu` (which type-checks the WASAPI
 loopback code) both pass, and the static `dist/client/index.html` hydrates with
 no console errors. The final MSVC build and the real Traktor run must happen on
 the Windows machine.
-
-
-### Testing against a real Traktor set
-
-1. In Traktor Pro 4, set the audio device to the Windows default output (WASAPI/DirectSound, not exclusive-mode ASIO — exclusive mode bypasses the loopback tap).
-2. Launch DJ Set Recorder; the input meter should move as soon as Traktor plays.
-3. Press Record, play at least a few minutes, close the window (it keeps recording in the tray), then Stop from the tray.
-4. Confirm the WAV in the recording folder plays back in full and the library shows the real duration, sample rate and size.
