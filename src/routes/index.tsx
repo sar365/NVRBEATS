@@ -8,6 +8,8 @@ import { DeviceChangedPanel, ErrorPanel } from "@/components/ErrorPanels";
 import { RecoveryFlow } from "@/components/RecoveryFlow";
 import { TrimDialog, type TrimResult } from "@/components/TrimDialog";
 import { toast } from "sonner";
+import { PreflightPanel } from "@/components/PreflightPanel";
+import { runPreflight, type PreflightReport } from "@/lib/preflight";
 
 import { Button } from "@/components/ui/button";
 import { useRecorder } from "@/hooks/useRecorder";
@@ -62,6 +64,34 @@ function RecorderPage() {
   const [pendingFinal, setPendingFinal] = useState<RecordingStatus | null>(null);
   const [trimBusy, setTrimBusy] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [preflight, setPreflight] = useState<PreflightReport | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  async function checkNow() {
+    setChecking(true);
+    try {
+      const report = await runPreflight(bridge, settings);
+      setPreflight(report);
+      return report;
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  /** Record only after the preflight passes (warnings are allowed). */
+  async function startWithPreflight() {
+    if (checking) return;
+    const report = await checkNow();
+    if (!report.ok) {
+      toast.error("Recording not started — preflight check failed.", {
+        description: report.checks.find((c) => c.status === "fail")?.detail,
+      });
+      return;
+    }
+    const warn = report.checks.find((c) => c.status === "warn");
+    if (warn) toast.warning(warn.label, { description: warn.detail });
+    await start(settings);
+  }
 
 
   useEffect(() => {
@@ -94,7 +124,7 @@ function RecorderPage() {
       const key = e.key.toLowerCase();
       if (key === "r" && !recording && !transitioning) {
         e.preventDefault();
-        void start(settings);
+        void startWithPreflight();
       } else if (key === "s" && recording) {
         e.preventDefault();
         void handleStop();
@@ -114,7 +144,7 @@ function RecorderPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recording, transitioning, settings, bridge, start]);
+  }, [recording, transitioning, settings, bridge, start, checking]);
 
   async function handleStop() {
     const final = await stop();
@@ -295,11 +325,15 @@ function RecorderPage() {
               <Button
                 size="lg"
                 className="h-14 min-w-52 bg-signal text-base font-semibold tracking-wide text-signal-foreground hover:bg-signal/90"
-                disabled={transitioning}
-                onClick={() => void start(settings)}
+                disabled={transitioning || checking}
+                onClick={() => void startWithPreflight()}
               >
                 <Circle className="size-4 fill-current" />{" "}
-                {transitioning ? (STATE_LABEL[status.state] ?? "").toUpperCase() : "RECORD"}
+                {checking
+                  ? "CHECKING"
+                  : transitioning
+                    ? (STATE_LABEL[status.state] ?? "").toUpperCase()
+                    : "RECORD"}
               </Button>
             )}
           </div>
@@ -310,6 +344,10 @@ function RecorderPage() {
             </p>
           ) : null}
         </section>
+
+        {!recording ? (
+          <PreflightPanel report={preflight} running={checking} onRun={() => void checkNow()} />
+        ) : null}
 
         <section className="rounded-xl border border-border bg-surface p-5">
           <h2 className="label-caps">Recording Source</h2>

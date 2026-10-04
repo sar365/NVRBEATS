@@ -118,6 +118,8 @@ pub fn run() {
             commands::get_audio_levels,
             commands::get_input_audio_levels,
             commands::get_disk_space,
+            commands::get_folder_disk_space,
+            commands::check_loopback_access,
             commands::recover_recording,
             commands::discard_recovery,
             commands::open_recording_folder,

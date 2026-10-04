@@ -205,3 +205,32 @@ fn render_filename(settings: &RecordingSettings) -> String {
         .collect();
     format!("{sanitized}.wav")
 }
+
+/// Preflight: can we open a shared-mode WASAPI loopback client on the default output?
+/// Opens and immediately releases the client; no audio is captured or written.
+#[tauri::command]
+pub fn check_loopback_access(sample_rate: u32) -> Result<String, String> {
+    #[cfg(windows)]
+    {
+        use wasapi::*;
+        let _ = initialize_mta();
+        let device = get_default_device(&Direction::Render).map_err(|e| e.to_string())?;
+        let mut client = device.get_iaudioclient().map_err(|e| e.to_string())?;
+        let format = WaveFormat::new(32, 32, &SampleType::Float, sample_rate as usize, 2, None);
+        let (_def, min_period) = client.get_periods().map_err(|e| e.to_string())?;
+        client
+            .initialize_client(&format, min_period, &Direction::Capture, &ShareMode::Shared, true)
+            .map_err(|e| e.to_string())?;
+        Ok(format!("Loopback opened at {} Hz (shared mode)", sample_rate))
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = sample_rate;
+        Err("WASAPI is only available on Windows".into())
+    }
+}
+
+#[tauri::command]
+pub fn get_folder_disk_space(folder: String) -> DiskSpace {
+    crate::disk::disk_space(&PathBuf::from(folder))
+}

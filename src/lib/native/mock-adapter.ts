@@ -124,6 +124,16 @@ class MockNativeAudioBridge implements NativeAudioBridge {
     return { freeBytes: 214_000_000_000, totalBytes: 1_000_000_000_000 };
   }
 
+  async getFolderDiskSpace(_folder: string): Promise<DiskSpace> {
+    return this.getDiskSpace();
+  }
+
+  /** Simulated — the browser preview never opens WASAPI. */
+  async checkLoopbackAccess(sampleRate: number): Promise<string> {
+    await delay(250);
+    return `Simulated loopback at ${sampleRate} Hz (preview)`;
+  }
+
   async recoverRecording() {
     this.status = { ...this.status, recovery: null, state: "COMPLETED" };
     return this.status;
