@@ -44,6 +44,10 @@ export interface NativeAudioBridge {
   getInputAudioLevels(): Promise<AudioLevels>;
 
   getDiskSpace(): Promise<DiskSpace>;
+  /** Free space on the volume holding a specific folder. */
+  getFolderDiskSpace(folder: string): Promise<DiskSpace>;
+  /** Try opening (and releasing) a WASAPI loopback client. Rejects with the reason on failure. */
+  checkLoopbackAccess(sampleRate: number): Promise<string>;
   recoverRecording(): Promise<RecordingStatus>;
   discardRecovery(): Promise<RecordingStatus>;
 

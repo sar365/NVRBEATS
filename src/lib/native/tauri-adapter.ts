@@ -71,6 +71,10 @@ export class TauriAudioBridge implements NativeAudioBridge {
   getInputAudioLevels = () => this.call<AudioLevels>("get_input_audio_levels");
 
   getDiskSpace = () => this.call<DiskSpace>("get_disk_space");
+  getFolderDiskSpace = (folder: string) =>
+    this.call<DiskSpace>("get_folder_disk_space", { folder });
+  checkLoopbackAccess = (sampleRate: number) =>
+    this.call<string>("check_loopback_access", { sampleRate });
   recoverRecording = () => this.call<RecordingStatus>("recover_recording");
   discardRecovery = () => this.call<RecordingStatus>("discard_recovery");
 
