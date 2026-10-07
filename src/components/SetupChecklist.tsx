@@ -125,9 +125,12 @@ function loadChecked(): Record<string, boolean> {
 }
 
 export function SetupChecklist() {
-  const [checked, setChecked] = useState<Record<string, boolean>>(() =>
-    typeof window === "undefined" ? {} : loadChecked(),
-  );
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+
+  // Load saved progress after hydration to avoid SSR/client mismatch.
+  useEffect(() => {
+    setChecked(loadChecked());
+  }, []);
 
   useEffect(() => {
     try {
