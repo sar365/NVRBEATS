@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Disc3, LibraryBig, Settings2, Radio } from "lucide-react";
+import { Disc3, LibraryBig, Settings2, Radio, ListChecks } from "lucide-react";
 import type { ReactNode } from "react";
 import { DevModeBanner } from "./DevModeBanner";
 import { PlayerBar } from "./PlayerBar";
@@ -7,6 +7,7 @@ import { PlayerBar } from "./PlayerBar";
 const nav = [
   { to: "/", label: "Recorder", icon: Radio },
   { to: "/library", label: "Library", icon: LibraryBig },
+  { to: "/setup", label: "Setup", icon: ListChecks },
   { to: "/settings", label: "Settings", icon: Settings2 },
 ] as const;
 
