@@ -126,13 +126,16 @@ function loadChecked(): Record<string, boolean> {
 
 export function SetupChecklist() {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const hydrated = useRef(false);
 
   // Load saved progress after hydration to avoid SSR/client mismatch.
   useEffect(() => {
     setChecked(loadChecked());
+    hydrated.current = true;
   }, []);
 
   useEffect(() => {
+    if (!hydrated.current) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(checked));
     } catch {
