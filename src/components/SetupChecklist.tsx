@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Circle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -125,11 +125,17 @@ function loadChecked(): Record<string, boolean> {
 }
 
 export function SetupChecklist() {
-  const [checked, setChecked] = useState<Record<string, boolean>>(() =>
-    typeof window === "undefined" ? {} : loadChecked(),
-  );
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const hydrated = useRef(false);
+
+  // Load saved progress after hydration to avoid SSR/client mismatch.
+  useEffect(() => {
+    setChecked(loadChecked());
+    hydrated.current = true;
+  }, []);
 
   useEffect(() => {
+    if (!hydrated.current) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(checked));
     } catch {
