@@ -1,0 +1,57 @@
+name: Windows Release Build
+
+# Builds the DJ Set Recorder Windows installer (MSI + NSIS .exe) on a real
+# Windows machine in the cloud, so no local build tools are needed.
+#
+# How to get your installer:
+#   1. Connect this project to GitHub (Lovable -> GitHub -> Connect).
+#   2. Push any change (or press "Run workflow" in the Actions tab).
+#   3. Open the finished run in GitHub -> Actions and download the
+#      "windows-installer" artifact at the bottom of the page.
+#   Tagged pushes (v*) also attach the installer to a GitHub Release.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build the desktop installer
+        run: bun run desktop:build
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      - name: Create GitHub Release (tagged pushes only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
