@@ -12,8 +12,8 @@
     "format": "prettier --write .",
     "tauri": "cargo tauri",
     "desktop:web": "vite build && bun scripts/make-desktop-index.mjs",
-    "desktop:dev": "cargo tauri dev",
-    "desktop:build": "cargo tauri build"
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
