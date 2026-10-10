@@ -8,7 +8,9 @@ name: Windows Release Build
 #   2. Push any change (or press "Run workflow" in the Actions tab).
 #   3. Open the finished run in GitHub -> Actions and download the
 #      "windows-installer" artifact at the bottom of the page.
-#   Tagged pushes (v*) also attach the installer to a GitHub Release.
+#   Every successful build is also published as a versioned GitHub Release
+#   (v<app-version>-build.<run-number>, or your tag name for v* tag pushes)
+#   with the installer attached, under GitHub -> Releases.
 
 on:
   push:
