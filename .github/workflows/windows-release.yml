@@ -79,5 +79,6 @@ jobs:
           files: |
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe
-          fail_on_unmatched_files: truee/nsis/*.exe
           fail_on_unmatched_files: true
+            Download the .msi or .exe below and run it to install.
+        
