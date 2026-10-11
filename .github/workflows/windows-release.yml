@@ -30,17 +30,22 @@ jobs:
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install Rust
+            - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-     - name: Install Tauri CLI
+
+      - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
+
       - name: Install dependencies
         run: bun install
+
+      - name: Build the desktop installer
+        run: bun run desktop:build
 
       - name: Build the desktop installer
         run: bun run desktop:build
