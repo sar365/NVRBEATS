@@ -1,5 +1,8 @@
 # Roadmap
 
+## Current
+- [ ] Diagnose the failed GitHub Windows build and fix installer release publishing
+
 ## Done
 - [x] Native Windows engine (Rust/Tauri): WASAPI loopback, WAV writing, tray, background recording
 - [x] Connect native commands to the app: start, stop, status, levels, path, settings sync
