@@ -75,7 +75,7 @@ jobs:
 
       # Build the app first so its executable and native DLLs can be signed before Tauri embeds them.
       - name: Build the desktop app without installers
-        run: bun run desktop:build --no-bundle
+        run: bunx tauri build --no-bundle
 
       - name: Sign in to Azure with GitHub OIDC
         if: github.event_name != 'pull_request'
