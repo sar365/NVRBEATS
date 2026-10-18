@@ -24,13 +24,13 @@ import type { OutputDevice, RecordingMeta, RecordingStatus } from "@/lib/native/
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "DJ Set Recorder — Record What You Hear" },
+      { title: "NVRBEATS — Record What You Hear" },
       {
         name: "description",
         content:
           "Record your Traktor Pro 4 sets straight from the Windows default output using WASAPI loopback. No microphone, no cables, no cloud.",
       },
-      { property: "og:title", content: "DJ Set Recorder — Record What You Hear" },
+      { property: "og:title", content: "NVRBEATS — Record What You Hear" },
       {
         property: "og:description",
         content:

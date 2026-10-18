@@ -32,13 +32,13 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/library/$id")({
   head: () => ({
     meta: [
-      { title: "Set Details — DJ Set Recorder" },
+      { title: "Set Details — NVRBEATS" },
       {
         name: "description",
         content:
           "Full metadata and file information for a recorded DJ set: artist, genre, format, sample rate, bit depth and local path.",
       },
-      { property: "og:title", content: "Set Details — DJ Set Recorder" },
+      { property: "og:title", content: "Set Details — NVRBEATS" },
       {
         property: "og:description",
         content: "Edit set metadata, open the local folder, convert or play a recorded DJ set.",

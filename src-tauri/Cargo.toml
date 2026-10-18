@@ -1,8 +1,8 @@
 [package]
 name = "dj-set-recorder"
 version = "0.1.0"
-description = "DJ Set Recorder — WASAPI loopback recorder for Traktor Pro 4"
-authors = ["DJ Set Recorder"]
+description = "NVRBEATS — WASAPI loopback recorder for Traktor Pro 4"
+authors = ["NVRBEATS"]
 edition = "2021"
 rust-version = "1.77"
 

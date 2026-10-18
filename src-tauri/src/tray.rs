@@ -12,7 +12,7 @@ pub const TRAY_ID: &str = "dj-set-recorder-tray";
 pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let start = MenuItem::with_id(app, "start", "Start recording", true, None::<&str>)?;
     let stop = MenuItem::with_id(app, "stop", "Stop recording", true, None::<&str>)?;
-    let show = MenuItem::with_id(app, "show", "Open DJ Set Recorder", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Open NVRBEATS", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
@@ -21,7 +21,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(app.default_window_icon().cloned().expect("bundled tray icon"))
-        .tooltip("DJ Set Recorder — Ready")
+        .tooltip("NVRBEATS — Ready")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -77,9 +77,9 @@ fn start_from_tray<R: Runtime>(app: &AppHandle<R>) {
 pub fn update_tooltip<R: Runtime>(app: &AppHandle<R>, state: RecorderState) {
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         let text = match state {
-            RecorderState::Recording => "DJ Set Recorder — Recording",
-            RecorderState::Error => "DJ Set Recorder — Error",
-            _ => "DJ Set Recorder — Ready",
+            RecorderState::Recording => "NVRBEATS — Recording",
+            RecorderState::Error => "NVRBEATS — Error",
+            _ => "NVRBEATS — Ready",
         };
         let _ = tray.set_tooltip(Some(text));
     }

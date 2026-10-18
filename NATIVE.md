@@ -1,6 +1,6 @@
 # Native Windows Boundary
 
-This repository contains the **control center UI** for DJ Set Recorder. It does not,
+This repository contains the **control center UI** for NVRBEATS. It does not,
 and must not, record audio in the browser. All capture happens in the native Windows
 build (Rust + Tauri).
 

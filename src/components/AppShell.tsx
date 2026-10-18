@@ -21,7 +21,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Disc3 className="size-4.5" />
             </span>
             <span className="leading-tight">
-              <span className="block text-sm font-semibold tracking-wide">DJ SET RECORDER</span>
+              <span className="block text-sm font-semibold tracking-wide">NVRBEATS</span>
               <span className="block text-[11px] text-muted-foreground">Record What You Hear</span>
             </span>
           </Link>

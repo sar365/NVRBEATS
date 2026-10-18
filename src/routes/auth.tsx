@@ -20,16 +20,16 @@ export const Route = createFileRoute("/auth")({
   }),
   head: () => ({
     meta: [
-      { title: "Sign In — DJ Set Recorder" },
+      { title: "Sign In — NVRBEATS" },
       {
         name: "description",
         content:
-          "Sign in to DJ Set Recorder to connect assistants and tools to your account.",
+          "Sign in to NVRBEATS to connect assistants and tools to your account.",
       },
-      { property: "og:title", content: "Sign In — DJ Set Recorder" },
+      { property: "og:title", content: "Sign In — NVRBEATS" },
       {
         property: "og:description",
-        content: "Sign in to DJ Set Recorder to connect assistants and tools.",
+        content: "Sign in to NVRBEATS to connect assistants and tools.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

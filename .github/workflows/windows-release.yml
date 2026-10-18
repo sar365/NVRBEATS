@@ -1,6 +1,6 @@
 name: Windows Release Build
 
-# Builds the DJ Set Recorder Windows installer (MSI + NSIS .exe) on a real
+# Builds the NVRBEATS Windows installer (MSI + NSIS .exe) on a real
 # Windows machine in the cloud, so no local build tools are needed.
 #
 # How to get your installer:
@@ -8,18 +8,21 @@ name: Windows Release Build
 #   2. Push any change (or press "Run workflow" in the Actions tab).
 #   3. Open the finished run in GitHub -> Actions and download the
 #      "windows-installer" artifact at the bottom of the page.
-#   Every successful build is also published as a versioned GitHub Release
-#   (v<app-version>-build.<run-number>, or your tag name for v* tag pushes)
-#   with the installer attached, under GitHub -> Releases.
+#   Successful main, tag, and manual builds are also published as versioned
+#   GitHub Releases (v<app-version>-build.<run-number>, or your tag name for
+#   v* tag pushes) with the installer attached.
+#   Pull request builds upload the installer artifact without publishing a release.
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-windows:
@@ -52,6 +55,21 @@ jobs:
       - name: Verify both Windows installers
         run: bun scripts/verify-windows-installers.mjs
 
+      - name: Set up Microsoft WinApp CLI
+        uses: microsoft/setup-WinAppCli@v0.1
+
+      - name: Package Microsoft Store MSIX
+        shell: pwsh
+        env:
+          STORE_PACKAGE_NAME: ${{ vars.STORE_PACKAGE_NAME || 'NVRBEATS.Preview' }}
+          STORE_PUBLISHER: ${{ vars.STORE_PUBLISHER || 'CN=NVRBEATS Preview' }}
+        run: ./scripts/package-microsoft-store.ps1
+
+      - name: Explain preview package identity
+        if: vars.STORE_PACKAGE_NAME == '' || vars.STORE_PUBLISHER == ''
+        shell: pwsh
+        run: Write-Host 'This is a preview MSIX, not ready for Store submission. Reserve the app name in Partner Center, then set STORE_PACKAGE_NAME and STORE_PUBLISHER repository variables. See docs/MICROSOFT-STORE.md.'
+
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
@@ -60,6 +78,37 @@ jobs:
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
+
+      - name: Upload Microsoft Store package
+        if: vars.STORE_PACKAGE_NAME != '' && vars.STORE_PUBLISHER != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: microsoft-store-msix
+          path: dist/store/*.msix
+          if-no-files-found: error
+
+      - name: Upload Microsoft Store preview package
+        if: vars.STORE_PACKAGE_NAME == '' || vars.STORE_PUBLISHER == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: microsoft-store-msix-preview
+          path: dist/store/*.msix
+          if-no-files-found: error
+
+  publish-release:
+    if: github.event_name != 'pull_request'
+    needs: build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: installers
 
       - name: Compute release version
         id: version
@@ -77,11 +126,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: DJ Set Recorder ${{ steps.version.outputs.tag }}
+          name: NVRBEATS ${{ steps.version.outputs.tag }}
           body: |
-            Windows installer for DJ Set Recorder (build ${{ github.run_number }}).
+            Windows installer for NVRBEATS (build ${{ github.run_number }}).
             Download the .msi or .exe below and run it to install.
           files: |
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/nsis/*.exe
+            installers/msi/*.msi
+            installers/nsis/*.exe
           fail_on_unmatched_files: true
