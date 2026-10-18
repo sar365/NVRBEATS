@@ -30,10 +30,10 @@ function oauthApi(): OAuthApi {
 export const Route = createFileRoute("/.lovable/oauth/consent")({
   head: () => ({
     meta: [
-      { title: "Authorize Agent Access — DJ Set Recorder" },
-      { name: "description", content: "Review and authorize an agent connection to DJ Set Recorder tools." },
-      { property: "og:title", content: "Authorize Agent Access — DJ Set Recorder" },
-      { property: "og:description", content: "Review and authorize an agent connection to DJ Set Recorder tools." },
+      { title: "Authorize Agent Access — NVRBEATS" },
+      { name: "description", content: "Review and authorize an agent connection to NVRBEATS tools." },
+      { property: "og:title", content: "Authorize Agent Access — NVRBEATS" },
+      { property: "og:description", content: "Review and authorize an agent connection to NVRBEATS tools." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -105,7 +105,7 @@ function Consent() {
   return (
     <main className="mx-auto max-w-md px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">
-        Connect {clientName} to DJ Set Recorder
+        Connect {clientName} to NVRBEATS
       </h1>
       <p className="mt-3 text-sm text-muted-foreground">
         This lets {clientName} use this app's tools as you.

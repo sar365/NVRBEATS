@@ -32,7 +32,7 @@ export default defineTool({
   name: "get_recorder_capabilities",
   title: "Get recorder capabilities",
   description:
-    "What DJ Set Recorder can do: capture method, supported formats and rates, features, and recorder states.",
+    "What NVRBEATS can do: capture method, supported formats and rates, features, and recorder states.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: () => ({

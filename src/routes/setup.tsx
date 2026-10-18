@@ -5,13 +5,13 @@ import { SetupChecklist } from "@/components/SetupChecklist";
 export const Route = createFileRoute("/setup")({
   head: () => ({
     meta: [
-      { title: "Windows Setup Checklist — DJ Set Recorder" },
+      { title: "Windows Setup Checklist — NVRBEATS" },
       {
         name: "description",
         content:
           "Track every step for building the Windows desktop app and testing real Traktor Pro 4 capture: tools, build, Traktor audio configuration, and the real-set test checklist.",
       },
-      { property: "og:title", content: "Windows Setup Checklist — DJ Set Recorder" },
+      { property: "og:title", content: "Windows Setup Checklist — NVRBEATS" },
       {
         property: "og:description",
         content:

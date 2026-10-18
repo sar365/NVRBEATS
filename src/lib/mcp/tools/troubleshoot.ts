@@ -20,7 +20,7 @@ export default defineTool({
   name: "troubleshoot_recording",
   title: "Troubleshoot a recording problem",
   description:
-    "Guidance for common DJ Set Recorder problems: silent recordings, dead meters, dropouts, device changes, crashes, or a missing file.",
+    "Guidance for common NVRBEATS problems: silent recordings, dead meters, dropouts, device changes, crashes, or a missing file.",
   inputSchema: {
     symptom: z
       .enum(["silence", "no_meters", "crackles", "device_changed", "crash", "file_missing"])

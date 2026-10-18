@@ -1,5 +1,5 @@
 /**
- * Shared domain types for the DJ Set Recorder.
+ * Shared domain types for the NVRBEATS.
  *
  * These types are the contract between the Lovable frontend (control center)
  * and the native Windows recording engine (the actual recorder).

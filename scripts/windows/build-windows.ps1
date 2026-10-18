@@ -1,4 +1,4 @@
-# DJ Set Recorder - Windows build launcher
+# NVRBEATS - Windows build launcher
 # Checks required tools, then builds the desktop installer.
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -9,7 +9,7 @@ function Bad($m)  { Write-Host "  [MISSING] $m" -ForegroundColor Red }
 function Info($m) { Write-Host "            $m" -ForegroundColor Yellow }
 
 Write-Host ""
-Write-Host "DJ Set Recorder - build launcher" -ForegroundColor Cyan
+Write-Host "NVRBEATS - build launcher" -ForegroundColor Cyan
 Write-Host "Checking required tools..." -ForegroundColor Cyan
 Write-Host ""
 

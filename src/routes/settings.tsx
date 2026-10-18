@@ -20,16 +20,16 @@ import type { AudioFormat, BitDepth, OutputDevice, SampleRate } from "@/lib/nati
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — DJ Set Recorder" },
+      { title: "Settings — NVRBEATS" },
       {
         name: "description",
         content:
           "Configure recording format, sample rate, bit depth, folder, filename template, auto record, tray behavior and advanced buffer settings.",
       },
-      { property: "og:title", content: "Settings — DJ Set Recorder" },
+      { property: "og:title", content: "Settings — NVRBEATS" },
       {
         property: "og:description",
-        content: "Tune how DJ Set Recorder captures and stores your Windows output.",
+        content: "Tune how NVRBEATS captures and stores your Windows output.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

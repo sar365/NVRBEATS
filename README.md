@@ -1,8 +1,8 @@
-# Traktor Companion
+# NVRBEATS
 
-Build a Lightweight Windows DJ Set Recorder for Traktor Pro 4
+A lightweight Windows desktop recorder for Traktor Pro 4.
 
-Build a professional, minimal Windows desktop DJ Set Recorder called DJ Set Recorder, designed specifically for users running Native Instruments Traktor Pro 4 and listening through their computer's normal Windows audio output.
+NVRBEATS is designed for users running Native Instruments Traktor Pro 4 and listening through their computer's normal Windows audio output.
 
 CRITICAL: DO NOT BUILD THIS AS A PURE WEB AUDIO RECORDER
 
@@ -40,7 +40,7 @@ Do not waste credits pretending that browser JavaScript can perform native WASAP
 
 The user's workflow should be:
 
-Open DJ Set Recorder.
+Open NVRBEATS.
 
 See the current Windows PC Default Output.
 
@@ -146,7 +146,6 @@ getRecordingPath()
 recoverIncompleteRecording()
 getDeviceStatus()
 
-
 The Lovable frontend should communicate with this abstraction.
 
 For the initial web-development environment, create a clearly labeled Development Mock Adapter only so the UI can be previewed.
@@ -163,7 +162,7 @@ Create a polished dark interface designed for DJs.
 
 Application name:
 
-DJ Set Recorder
+NVRBEATS
 
 Subtitle:
 
@@ -171,19 +170,18 @@ Record What You Hear
 
 Main dashboard:
 
-DJ SET RECORDER
+NVRBEATS
 
 PC DEFAULT OUTPUT
 
 Speakers (Realtek(R) Audio)
 
-L  █████████████
-R  █████████████
+L █████████████
+R █████████████
 
 READY
 
         ● RECORD
-
 
 When recording:
 
@@ -193,15 +191,14 @@ PC DEFAULT OUTPUT
 
 Speakers (Realtek(R) Audio)
 
-L  █████████████
-R  █████████████
+L █████████████
+R █████████████
 
 01:37:42
 
 WAV • 48 kHz • 24-bit
 
         ■ STOP
-
 
 Keep the design clean and professional.
 
@@ -286,7 +283,6 @@ COMPLETED
 ERROR
 RECOVERY_AVAILABLE
 DEVICE_DISCONNECTED
-
 
 The UI must react appropriately to each state.
 
@@ -379,7 +375,6 @@ bounded audio buffer
 asynchronous disk writer
 ↓
 WAV
-
 
 The UI only receives lightweight status information.
 
@@ -543,7 +538,6 @@ tags
 artwork_path
 created_at
 updated_at
-
 
 Do not require a cloud database for the core recorder.
 
@@ -903,7 +897,6 @@ playRecording()
 
 convertRecording()
 
-
 Use clean typed interfaces.
 
 Keep the frontend independent from the native implementation.
@@ -1130,7 +1123,6 @@ The finished application should ultimately look like:
                      │
                      ▼
                LOVABLE UI
-
 
 The Lovable frontend is the control center.
 

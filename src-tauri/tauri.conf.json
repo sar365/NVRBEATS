@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "DJ Set Recorder",
+  "productName": "NVRBEATS",
   "version": "0.1.0",
   "identifier": "app.djsetrecorder.desktop",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "DJ Set Recorder",
+        "title": "NVRBEATS",
         "width": 1100,
         "height": 780,
         "minWidth": 900,
@@ -28,7 +28,7 @@
       "id": "dj-set-recorder-tray",
       "iconPath": "icons/icon.png",
       "iconAsTemplate": false,
-      "tooltip": "DJ Set Recorder"
+      "tooltip": "NVRBEATS"
     }
   },
   "bundle": {

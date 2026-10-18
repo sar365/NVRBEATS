@@ -1,4 +1,4 @@
-//! DJ Set Recorder — native Windows engine.
+//! NVRBEATS — native Windows engine.
 //!
 //! Capture path: Traktor Pro 4 -> Windows Audio -> PC Default Output
 //!               -> WASAPI loopback -> local recorder -> WAV on disk.
@@ -50,6 +50,8 @@ pub fn default_settings() -> RecordingSettings {
 
 fn dirs_music_folder() -> String {
     if let Ok(profile) = std::env::var("USERPROFILE") {
+        // Keep the existing folder so users upgrading from DJ Set Recorder
+        // continue to see their recordings in the library.
         format!("{profile}\\Music\\DJ Set Recorder")
     } else {
         "Recordings".into()
@@ -133,5 +135,5 @@ pub fn run() {
             commands::restore_window,
         ])
         .run(tauri::generate_context!())
-        .expect("failed to start DJ Set Recorder");
+        .expect("failed to start NVRBEATS");
 }
