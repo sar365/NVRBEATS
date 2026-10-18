@@ -28,6 +28,16 @@ function oauthApi(): OAuthApi {
 }
 
 export const Route = createFileRoute("/.lovable/oauth/consent")({
+  head: () => ({
+    meta: [
+      { title: "Authorize Agent Access — DJ Set Recorder" },
+      { name: "description", content: "Review and authorize an agent connection to DJ Set Recorder tools." },
+      { property: "og:title", content: "Authorize Agent Access — DJ Set Recorder" },
+      { property: "og:description", content: "Review and authorize an agent connection to DJ Set Recorder tools." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   ssr: false,
   validateSearch: (search: Record<string, unknown>) => ({
     authorization_id:

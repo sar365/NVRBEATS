@@ -31,6 +31,8 @@ export const Route = createFileRoute("/settings")({
         property: "og:description",
         content: "Tune how DJ Set Recorder captures and stores your Windows output.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: SettingsPage,

@@ -14,7 +14,7 @@ const routesDir = `${rootDir.replace(/\/$/, "")}/src/routes`;
 export default defineConfig({
   // MCP serves the hosted app only. Its path containment check in v2.0.4
   // rejects Windows separators; desktop packaging needs no MCP HTTP routes.
-  plugins: process.env.DESKTOP_BUILD === "1" ? [] : [
+  plugins: process.env["DESKTOP_BUILD"] === "1" ? [] : [
     mcpPlugin({
       routesDir,
     }),
