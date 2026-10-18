@@ -35,7 +35,7 @@
       {
         "name": "get_recorder_capabilities",
         "title": "Get recorder capabilities",
-        "description": "What DJ Set Recorder can do: capture method, supported formats and rates, features, and recorder states.",
+        "description": "What NVRBEATS can do: capture method, supported formats and rates, features, and recorder states.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -51,7 +51,7 @@
       {
         "name": "troubleshoot_recording",
         "title": "Troubleshoot a recording problem",
-        "description": "Guidance for common DJ Set Recorder problems: silent recordings, dead meters, dropouts, device changes, crashes, or a missing file.",
+        "description": "Guidance for common NVRBEATS problems: silent recordings, dead meters, dropouts, device changes, crashes, or a missing file.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
