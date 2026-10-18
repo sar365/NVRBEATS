@@ -56,7 +56,7 @@ jobs:
         run: bun scripts/verify-windows-installers.mjs
 
       - name: Set up Microsoft WinApp CLI
-        uses: microsoft/setup-winapp@v1
+        uses: microsoft/setup-WinAppCli@v0.1
 
       - name: Package Microsoft Store MSIX
         shell: pwsh
