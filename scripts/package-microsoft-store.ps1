@@ -31,9 +31,12 @@ winapp manifest generate $stage `
     --publisher-name $env:STORE_PUBLISHER `
     --version $version `
     --description 'WASAPI loopback DJ set recorder for Windows' `
-    --entrypoint 'dj-set-recorder.exe' `
+    --entrypoint $exe `
     --logo-path $logo `
     --if-exists Overwrite
+if ($LASTEXITCODE -ne 0) {
+    throw "WinApp CLI manifest generation failed with exit code $LASTEXITCODE."
+}
 
 $manifestPath = Join-Path $stage 'Package.appxmanifest'
 if (-not (Test-Path $manifestPath)) {
@@ -54,6 +57,9 @@ $manifest.Save($manifestPath)
 
 $package = Join-Path $output 'NVRBEATS.msix'
 winapp pack $stage --output $package --no-sign
+if ($LASTEXITCODE -ne 0) {
+    throw "WinApp CLI MSIX packaging failed with exit code $LASTEXITCODE."
+}
 
 if (-not (Test-Path $package)) {
     throw "Microsoft Store MSIX was not created: $package"
