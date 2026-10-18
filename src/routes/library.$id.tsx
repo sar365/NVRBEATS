@@ -43,6 +43,8 @@ export const Route = createFileRoute("/library/$id")({
         property: "og:description",
         content: "Edit set metadata, open the local folder, convert or play a recorded DJ set.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: DetailPage,

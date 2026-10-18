@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Desktop web packaging must run through `scripts/build-desktop-web.mjs`, which sets `DESKTOP_BUILD=1` for its subprocesses; hosted MCP generation is omitted because it is server-only and its Windows path guard blocks packaging.
+- Windows releases use the project's JavaScript Tauri CLI and validate both MSI and NSIS file headers before publishing; this avoids redundant CLI compilation and incomplete releases.

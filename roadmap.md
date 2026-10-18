@@ -1,5 +1,9 @@
 # Roadmap
 
+## Current
+- [x] Diagnose the failed GitHub Windows build and fix installer release publishing (MCP Windows path guard bypassed for desktop; both installer headers checked before release)
+- [ ] Confirm a successful Windows release with MSI and EXE attachments — waiting for GitHub to run the synced fix
+
 ## Done
 - [x] Native Windows engine (Rust/Tauri): WASAPI loopback, WAV writing, tray, background recording
 - [x] Connect native commands to the app: start, stop, status, levels, path, settings sync

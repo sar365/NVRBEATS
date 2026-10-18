@@ -36,6 +36,8 @@ export const Route = createFileRoute("/")({
         content:
           "A lightweight Windows recorder that captures the digital audio sent to your PC default output.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: RecorderPage,

@@ -24,6 +24,8 @@ export const Route = createFileRoute("/library/")({
         property: "og:description",
         content: "Local-first library of your recorded DJ sets, stored on your own machine.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: LibraryPage,
