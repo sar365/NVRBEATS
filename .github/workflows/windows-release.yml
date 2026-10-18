@@ -32,20 +32,25 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --locked
-
       - name: Install dependencies
         run: bun install
 
+      - name: Test installer validation
+        run: bun test scripts/verify-windows-installers.test.mjs
+
       - name: Build the desktop installer
         run: bun run desktop:build
+
+      - name: Verify both Windows installers
+        run: bun scripts/verify-windows-installers.mjs
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
@@ -80,5 +85,3 @@ jobs:
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe
           fail_on_unmatched_files: true
-            Download the .msi or .exe below and run it to install.
-        
