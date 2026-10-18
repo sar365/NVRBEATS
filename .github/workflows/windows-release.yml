@@ -8,18 +8,21 @@ name: Windows Release Build
 #   2. Push any change (or press "Run workflow" in the Actions tab).
 #   3. Open the finished run in GitHub -> Actions and download the
 #      "windows-installer" artifact at the bottom of the page.
-#   Every successful build is also published as a versioned GitHub Release
-#   (v<app-version>-build.<run-number>, or your tag name for v* tag pushes)
-#   with the installer attached, under GitHub -> Releases.
+#   Successful main, tag, and manual builds are also published as versioned
+#   GitHub Releases (v<app-version>-build.<run-number>, or your tag name for
+#   v* tag pushes) with the installer attached.
+#   Pull request builds upload the installer artifact without publishing a release.
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-windows:
@@ -61,6 +64,21 @@ jobs:
             src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
 
+  publish-release:
+    if: github.event_name != 'pull_request'
+    needs: build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: installers
+
       - name: Compute release version
         id: version
         shell: bash
@@ -82,6 +100,6 @@ jobs:
             Windows installer for DJ Set Recorder (build ${{ github.run_number }}).
             Download the .msi or .exe below and run it to install.
           files: |
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/nsis/*.exe
+            installers/msi/*.msi
+            installers/nsis/*.exe
           fail_on_unmatched_files: true
