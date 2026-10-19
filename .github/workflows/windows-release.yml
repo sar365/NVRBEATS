@@ -46,7 +46,11 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Validate Artifact Signing configuration
+      # Signing is optional: when the nvrbeats-signing environment is not configured,
+      # the build still publishes unsigned installers (Windows may show a SmartScreen
+      # warning on install). See docs/MICROSOFT-STORE.md to enable signing later.
+      - name: Detect Artifact Signing configuration
+        id: signing
         if: github.event_name != 'pull_request'
         shell: pwsh
         env:
@@ -67,7 +71,10 @@ jobs:
           )
           $missing = @($required | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
           if ($missing.Count -gt 0) {
-            throw "Configure the nvrbeats-signing GitHub environment before creating a release. Missing: $($missing -join ', '). See docs/MICROSOFT-STORE.md."
+            Write-Host "Artifact Signing not configured (missing: $($missing -join ', ')). Building unsigned installers. See docs/MICROSOFT-STORE.md to enable signing."
+            echo "configured=false" >> "$env:GITHUB_OUTPUT"
+          } else {
+            echo "configured=true" >> "$env:GITHUB_OUTPUT"
           }
 
       - name: Test installer validation
@@ -78,7 +85,7 @@ jobs:
         run: bunx tauri build --no-bundle
 
       - name: Sign in to Azure with GitHub OIDC
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.signing.outputs.configured == 'true'
         uses: Azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -86,7 +93,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Sign the NVRBEATS app executable and native DLLs
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.signing.outputs.configured == 'true'
         uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           endpoint: ${{ vars.ARTIFACT_SIGNING_ENDPOINT }}
@@ -106,7 +113,7 @@ jobs:
         run: bunx tauri bundle --no-binary-patching
 
       - name: Sign the MSI and NSIS installers
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.signing.outputs.configured == 'true'
         uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           endpoint: ${{ vars.ARTIFACT_SIGNING_ENDPOINT }}
