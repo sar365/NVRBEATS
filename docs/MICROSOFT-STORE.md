@@ -19,7 +19,7 @@ Do not submit the preview artifact or use an invented identity: the package iden
 
 ## Artifact Signing for MSI/EXE releases
 
-Non-pull-request runs of **Windows Release Build** require the signing setup below. If it is missing, the workflow stops before publishing an unsigned installer release. Pull request builds continue without credentials and upload unsigned test artifacts.
+Signing is **optional**. When the `nvrbeats-signing` environment is not configured, non-pull-request builds skip signing and still publish unsigned installers (Windows may show a SmartScreen warning on install). When the setup below is complete, the same workflow signs the app executable and native DLLs before bundling, then signs both installers. Pull request builds always skip signing and upload unsigned test artifacts.
 
 ### Azure setup
 
