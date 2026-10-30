@@ -1,6 +1,7 @@
 //! WASAPI loopback capture engine.
 //!
-//! Path: Traktor Pro 4 -> Windows Audio -> PC Default Output -> WASAPI loopback
+//! Path: Traktor Pro 4 -> Windows Audio -> selected render endpoint (or default)
+//!       -> WASAPI loopback
 //!       -> bounded queue -> writer thread -> WAV on local disk.
 //!
 //! Two threads:
@@ -42,6 +43,9 @@ pub struct Engine {
     pub sample_rate: Mutex<u32>,
     pub bit_depth: Mutex<u16>,
     pub capture_running: AtomicBool,
+    pub capture_generation: std::sync::atomic::AtomicU64,
+    pub capture_device_id: Mutex<Option<String>>,
+    pub current_device_id: Mutex<Option<String>>,
     /// Set by the capture thread when a recording is armed.
     pub armed: Mutex<Option<SyncSender<WriterMsg>>>,
 }
@@ -59,6 +63,9 @@ impl Engine {
             sample_rate: Mutex::new(48_000),
             bit_depth: Mutex::new(24),
             capture_running: AtomicBool::new(false),
+            capture_generation: std::sync::atomic::AtomicU64::new(0),
+            capture_device_id: Mutex::new(None),
+            current_device_id: Mutex::new(None),
             armed: Mutex::new(None),
         })
     }
@@ -67,15 +74,50 @@ impl Engine {
         *self.state.lock() = state;
     }
 
+    /// Apply persisted capture routing before spawning the capture thread, or
+    /// request an orderly stream restart if the thread is already running.
+    pub fn apply_capture_settings(&self, settings: &RecordingSettings) -> Result<(), String> {
+        validate_capture_settings(settings)?;
+        *self.sample_rate.lock() = settings.sample_rate;
+        *self.bit_depth.lock() = settings.bit_depth;
+        *self.capture_device_id.lock() = if settings.follow_windows_default {
+            None
+        } else {
+            settings.output_device_id.clone()
+        };
+        self.capture_generation.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+
     pub fn status(&self) -> RecordingStatus {
         let frames = self.meters.frames_written.load(Ordering::Relaxed);
         let rate = *self.sample_rate.lock() as f64;
+        let requested_device_id = self.capture_device_id.lock().clone();
+        let current_device_id = self.current_device_id.lock().clone();
+        let device = current_device_id
+            .as_deref()
+            .and_then(|id| crate::devices::output_device_by_id_snapshot(id).ok())
+            .or_else(|| {
+                if requested_device_id.is_none() {
+                    crate::devices::default_output_device()
+                } else {
+                    None
+                }
+            });
         RecordingStatus {
             state: *self.state.lock(),
-            duration_sec: if rate > 0.0 { frames as f64 / rate } else { 0.0 },
+            duration_sec: if rate > 0.0 {
+                frames as f64 / rate
+            } else {
+                0.0
+            },
             file_size_bytes: self.meters.bytes_written.load(Ordering::Relaxed),
-            path: self.last_path.lock().as_ref().map(|p| p.display().to_string()),
-            device: crate::devices::default_output_device(),
+            path: self
+                .last_path
+                .lock()
+                .as_ref()
+                .map(|p| p.display().to_string()),
+            device,
             error: self.error.lock().clone(),
             device_change: self.device_change.lock().clone(),
             recovery: self.recovery.lock().clone(),
@@ -83,14 +125,19 @@ impl Engine {
     }
 
     /// Start (or restart) a recording. Returns the `.part` path being written.
-    pub fn start(self: &Arc<Self>, settings: &RecordingSettings, target: PathBuf) -> Result<PathBuf, String> {
+    pub fn start(
+        self: &Arc<Self>,
+        settings: &RecordingSettings,
+        target: PathBuf,
+    ) -> Result<PathBuf, String> {
         if self.active.lock().is_some() {
             return Err("A recording is already running".into());
         }
+        validate_capture_settings(settings)?;
         self.set_state(RecorderState::Starting);
         self.meters.reset_output();
-        *self.sample_rate.lock() = settings.sample_rate;
         *self.bit_depth.lock() = settings.bit_depth;
+        self.apply_capture_settings(settings)?;
 
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -174,7 +221,9 @@ impl Engine {
         }
         *self.last_path.lock() = Some(active.final_path.clone());
         if let Ok(meta) = std::fs::metadata(&active.final_path) {
-            self.meters.bytes_written.store(meta.len(), Ordering::Relaxed);
+            self.meters
+                .bytes_written
+                .store(meta.len(), Ordering::Relaxed);
         }
         self.meters.set_output(0.0, 0.0);
         self.set_state(RecorderState::Completed);
@@ -195,7 +244,11 @@ impl Engine {
                     found = Some(IncompleteRecording {
                         path: path.display().to_string(),
                         started_at: chrono::Utc::now().to_rfc3339(),
-                        duration_sec: if rate > 0.0 { size as f64 / (rate * depth * 2.0) } else { 0.0 },
+                        duration_sec: if rate > 0.0 {
+                            size as f64 / (rate * depth * 2.0)
+                        } else {
+                            0.0
+                        },
                         file_size_bytes: size,
                     });
                     break;
@@ -207,6 +260,25 @@ impl Engine {
         }
         *self.recovery.lock() = found;
     }
+}
+
+pub fn validate_capture_settings(settings: &RecordingSettings) -> Result<(), String> {
+    if !matches!(settings.sample_rate, 44_100 | 48_000) {
+        return Err("Sample rate must be exactly 44100 or 48000 Hz".into());
+    }
+    if !matches!(settings.bit_depth, 16 | 24) {
+        return Err("Bit depth must be exactly 16 or 24".into());
+    }
+    if !settings.follow_windows_default
+        && settings
+            .output_device_id
+            .as_deref()
+            .unwrap_or("")
+            .is_empty()
+    {
+        return Err("Select an output device or enable followWindowsDefault".into());
+    }
+    Ok(())
 }
 
 #[cfg(windows)]
@@ -226,6 +298,7 @@ pub fn spawn_capture_thread(engine: Arc<Engine>) {
                 if engine.active.lock().is_some() {
                     engine.set_state(RecorderState::Error);
                 }
+                *engine.current_device_id.lock() = None;
             }
             // The default output device may have changed (Traktor switching
             // ASIO/WASAPI, headphones plugged in). Retry shortly.
@@ -239,7 +312,14 @@ fn run_loopback(engine: &Arc<Engine>) -> Result<(), String> {
     use wasapi::*;
 
     initialize_mta().ok().map_err(|e| e.to_string())?;
-    let device = get_default_device(&Direction::Render).map_err(|e| e.to_string())?;
+    let generation = engine.capture_generation.load(Ordering::SeqCst);
+    let requested_id = engine.capture_device_id.lock().clone();
+    let device = if let Some(id) = requested_id.as_deref() {
+        crate::devices::output_device_by_id(id)?
+    } else {
+        get_default_device(&Direction::Render).map_err(|e| e.to_string())?
+    };
+    let actual_id = device.get_id().map_err(|e| e.to_string())?;
     let mut audio_client = device.get_iaudioclient().map_err(|e| e.to_string())?;
 
     let sample_rate = *engine.sample_rate.lock() as usize;
@@ -256,13 +336,23 @@ fn run_loopback(engine: &Arc<Engine>) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
 
-    let h_event = audio_client.set_get_eventhandle().map_err(|e| e.to_string())?;
-    let capture_client = audio_client.get_audiocaptureclient().map_err(|e| e.to_string())?;
+    let h_event = audio_client
+        .set_get_eventhandle()
+        .map_err(|e| e.to_string())?;
+    let capture_client = audio_client
+        .get_audiocaptureclient()
+        .map_err(|e| e.to_string())?;
     let block_align = format.get_blockalign() as usize;
     let mut queue: std::collections::VecDeque<u8> = std::collections::VecDeque::new();
     audio_client.start_stream().map_err(|e| e.to_string())?;
+    *engine.current_device_id.lock() = Some(actual_id);
 
     loop {
+        if engine.capture_generation.load(Ordering::SeqCst) != generation {
+            let _ = audio_client.stop_stream();
+            *engine.current_device_id.lock() = None;
+            return Ok(());
+        }
         capture_client
             .read_from_device_to_deque(&mut queue)
             .map_err(|e| e.to_string())?;
@@ -292,7 +382,16 @@ fn run_loopback(engine: &Arc<Engine>) -> Result<(), String> {
 
         if h_event.wait_for_event(1000).is_err() {
             let _ = audio_client.stop_stream();
+            *engine.current_device_id.lock() = None;
+            if engine.capture_generation.load(Ordering::SeqCst) != generation {
+                return Ok(());
+            }
             return Err("WASAPI event timeout — the output device may have changed".into());
+        }
+        if engine.capture_generation.load(Ordering::SeqCst) != generation {
+            let _ = audio_client.stop_stream();
+            *engine.current_device_id.lock() = None;
+            return Ok(());
         }
     }
 }

@@ -35,17 +35,25 @@ export async function runPreflight(
   // 1. Output device
   let deviceOk = false;
   try {
-    const device = await bridge.getDefaultOutputDevice();
+    const device = settings.followWindowsDefault
+      ? await bridge.getDefaultOutputDevice()
+      : ((await bridge.getOutputDevices()).find(
+          (candidate) => candidate.id === settings.outputDeviceId,
+        ) ?? null);
     deviceOk = !!device && device.status === "CONNECTED";
     checks.push({
       id: "output",
-      label: "Windows audio output",
+      label: settings.followWindowsDefault ? "Windows audio output" : "Selected audio output",
       status: deviceOk ? "pass" : "fail",
       detail: device
         ? deviceOk
-          ? `${device.name} is the default output.`
-          : `${device.name} is disconnected. Reconnect it or pick another default output in Windows.`
-        : "No default playback device found. Set one in Windows Sound settings.",
+          ? settings.followWindowsDefault
+            ? `${device.name} is the default output.`
+            : `${device.name} is selected and connected.`
+          : `${device.name} is disconnected. Reconnect it or select another output device.`
+        : settings.followWindowsDefault
+          ? "No default playback device found. Set one in Windows Sound settings."
+          : "The selected output device is unavailable. Choose another device or follow the Windows default.",
     });
   } catch (e) {
     checks.push({ id: "output", label: "Windows audio output", status: "fail", detail: String(e) });
@@ -61,7 +69,10 @@ export async function runPreflight(
     });
   } else {
     try {
-      const msg = await bridge.checkLoopbackAccess(settings.sampleRate);
+      const msg = await bridge.checkLoopbackAccess(
+        settings.sampleRate,
+        settings.followWindowsDefault ? null : settings.outputDeviceId,
+      );
       checks.push({ id: "wasapi", label: "WASAPI loopback access", status: "pass", detail: msg });
     } catch (e) {
       checks.push({

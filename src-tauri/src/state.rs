@@ -119,6 +119,8 @@ pub struct RecordingSettings {
     pub filename_template: String,
     #[serde(rename = "followWindowsDefault")]
     pub follow_windows_default: bool,
+    #[serde(rename = "outputDeviceId", default)]
+    pub output_device_id: Option<String>,
     #[serde(rename = "deviceChangeBehavior")]
     pub device_change_behavior: String,
     #[serde(rename = "autoRecord")]
@@ -195,11 +197,19 @@ impl Meters {
     }
 
     pub fn input(&self) -> AudioLevels {
-        AudioLevels { left: load(&self.input_left), right: load(&self.input_right), mock: false }
+        AudioLevels {
+            left: load(&self.input_left),
+            right: load(&self.input_right),
+            mock: false,
+        }
     }
 
     pub fn output(&self) -> AudioLevels {
-        AudioLevels { left: load(&self.output_left), right: load(&self.output_right), mock: false }
+        AudioLevels {
+            left: load(&self.output_left),
+            right: load(&self.output_right),
+            mock: false,
+        }
     }
 
     pub fn reset_output(&self) {

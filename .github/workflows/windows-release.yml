@@ -3,8 +3,8 @@ name: Windows Release Build
 # Builds NVRBEATS on Windows, signs release binaries with Microsoft Artifact Signing,
 # packages MSI/NSIS installers, and publishes versioned GitHub Releases.
 #
-# Before non-PR runs can publish installers, configure the nvrbeats-signing GitHub
-# environment and its Azure OIDC identity as documented in docs/MICROSOFT-STORE.md.
+# Azure Artifact Signing is optional: without its nvrbeats-signing environment
+# configuration, release installers are built and published unsigned.
 
 on:
   pull_request:
@@ -13,12 +13,102 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish a GitHub Release
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: windows-release-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.ref == 'refs/heads/main' && github.event_name == 'push') }}
 
 permissions:
   contents: read
 
 jobs:
-  build-windows:
+  build-windows-ci:
+    runs-on: windows-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && !inputs.publish_release)
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Test installer validation
+        run: bun test scripts/verify-windows-installers.test.mjs
+
+      # Build the app first so its executable and native DLLs can be signed before Tauri embeds them.
+      - name: Build the desktop app without installers
+        run: bunx tauri build --no-bundle
+
+      # --no-binary-patching preserves the app's signature after Tauri packages it.
+      - name: Build MSI and NSIS installers
+        run: bunx tauri bundle --no-binary-patching
+
+      - name: Verify both Windows installers
+        run: bun scripts/verify-windows-installers.mjs
+
+      - name: Set up Microsoft WinApp CLI
+        uses: microsoft/setup-WinAppCli@v0.1
+
+      - name: Package Microsoft Store MSIX
+        shell: pwsh
+        env:
+          STORE_PACKAGE_NAME: ${{ vars.STORE_PACKAGE_NAME || 'NVRBEATS.Preview' }}
+          STORE_PUBLISHER: ${{ vars.STORE_PUBLISHER || 'CN=NVRBEATS Preview' }}
+        run: ./scripts/package-microsoft-store.ps1
+
+      - name: Explain preview package identity
+        if: vars.STORE_PACKAGE_NAME == '' || vars.STORE_PUBLISHER == ''
+        shell: pwsh
+        run: Write-Host 'This is a preview MSIX, not ready for Store submission. Reserve the app name in Partner Center, then set STORE_PACKAGE_NAME and STORE_PUBLISHER repository variables. See docs/MICROSOFT-STORE.md.'
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      - name: Upload Microsoft Store package
+        if: vars.STORE_PACKAGE_NAME != '' && vars.STORE_PUBLISHER != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: microsoft-store-msix
+          path: dist/store/*.msix
+          if-no-files-found: error
+
+      - name: Upload Microsoft Store preview package
+        if: vars.STORE_PACKAGE_NAME == '' || vars.STORE_PUBLISHER == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: microsoft-store-msix-preview
+          path: dist/store/*.msix
+          if-no-files-found: error
+
+
+  build-windows-release:
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release)
     runs-on: windows-latest
     permissions:
       contents: read
@@ -26,7 +116,7 @@ jobs:
     # The signing environment gives Azure OIDC a stable subject for branch, tag,
     # and manual release runs. PR builds use an unprivileged environment and skip signing.
     environment:
-      name: ${{ github.event_name == 'pull_request' && 'ci' || 'nvrbeats-signing' }}
+      name: ${{ 'nvrbeats-signing' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -172,8 +262,8 @@ jobs:
           if-no-files-found: error
 
   publish-release:
-    if: github.event_name != 'pull_request'
-    needs: build-windows
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+    needs: build-windows-release
     runs-on: ubuntu-latest
     permissions:
       contents: write

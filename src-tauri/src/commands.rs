@@ -22,8 +22,19 @@ pub fn get_output_devices() -> Vec<OutputDevice> {
 }
 
 #[tauri::command]
-pub fn get_current_output_device() -> Option<OutputDevice> {
-    devices::default_output_device()
+pub fn get_current_output_device(engine: State<'_, Shared>) -> Option<OutputDevice> {
+    engine
+        .current_device_id
+        .lock()
+        .as_deref()
+        .and_then(|id| devices::output_device_by_id_snapshot(id).ok())
+        .or_else(|| {
+            if engine.capture_device_id.lock().is_none() {
+                devices::default_output_device()
+            } else {
+                None
+            }
+        })
 }
 
 #[tauri::command]
@@ -31,6 +42,12 @@ pub fn start_recording(
     engine: State<'_, Shared>,
     settings: RecordingSettings,
 ) -> Result<RecordingStatus, String> {
+    let device_id = if settings.follow_windows_default {
+        None
+    } else {
+        settings.output_device_id.clone()
+    };
+    check_loopback_access(settings.sample_rate, device_id)?;
     let folder = PathBuf::from(&settings.folder);
     let filename = render_filename(&settings);
     let target = folder.join(filename);
@@ -39,8 +56,14 @@ pub fn start_recording(
 }
 
 #[tauri::command]
-pub fn stop_recording(engine: State<'_, Shared>) -> Result<RecordingStatus, String> {
-    engine.stop()
+pub fn stop_recording(
+    engine: State<'_, Shared>,
+    settings_state: State<'_, crate::LastSettings>,
+) -> Result<RecordingStatus, String> {
+    let status = engine.stop()?;
+    let settings = settings_state.0.lock().clone();
+    engine.apply_capture_settings(&settings)?;
+    Ok(status)
 }
 
 #[tauri::command]
@@ -139,7 +162,9 @@ pub async fn choose_recording_folder(app: AppHandle) -> Option<String> {
 #[tauri::command]
 pub fn play_recording(app: AppHandle, path: String) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
-    app.opener().open_path(path, None::<&str>).map_err(|e| e.to_string())
+    app.opener()
+        .open_path(path, None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -198,7 +223,11 @@ fn render_filename(settings: &RecordingSettings) -> String {
         .replace("{set}", "Set")
         .trim()
         .to_string();
-    let name = if name.is_empty() { now.format("%Y-%m-%d %H-%M-%S").to_string() } else { name };
+    let name = if name.is_empty() {
+        now.format("%Y-%m-%d %H-%M-%S").to_string()
+    } else {
+        name
+    };
     let sanitized: String = name
         .chars()
         .map(|c| if "\\/:*?\"<>|".contains(c) { '-' } else { c })
@@ -209,23 +238,41 @@ fn render_filename(settings: &RecordingSettings) -> String {
 /// Preflight: can we open a shared-mode WASAPI loopback client on the default output?
 /// Opens and immediately releases the client; no audio is captured or written.
 #[tauri::command]
-pub fn check_loopback_access(sample_rate: u32) -> Result<String, String> {
+pub fn check_loopback_access(
+    sample_rate: u32,
+    device_id: Option<String>,
+) -> Result<String, String> {
+    if !matches!(sample_rate, 44_100 | 48_000) {
+        return Err("Sample rate must be exactly 44100 or 48000 Hz".into());
+    }
     #[cfg(windows)]
     {
         use wasapi::*;
         let _ = initialize_mta();
-        let device = get_default_device(&Direction::Render).map_err(|e| e.to_string())?;
+        let device = match device_id.as_deref() {
+            Some(id) => devices::output_device_by_id(id)?,
+            None => get_default_device(&Direction::Render).map_err(|e| e.to_string())?,
+        };
         let mut client = device.get_iaudioclient().map_err(|e| e.to_string())?;
         let format = WaveFormat::new(32, 32, &SampleType::Float, sample_rate as usize, 2, None);
         let (_def, min_period) = client.get_periods().map_err(|e| e.to_string())?;
         client
-            .initialize_client(&format, min_period, &Direction::Capture, &ShareMode::Shared, true)
+            .initialize_client(
+                &format,
+                min_period,
+                &Direction::Capture,
+                &ShareMode::Shared,
+                true,
+            )
             .map_err(|e| e.to_string())?;
-        Ok(format!("Loopback opened at {} Hz (shared mode)", sample_rate))
+        Ok(format!(
+            "Loopback opened at {} Hz (shared mode)",
+            sample_rate
+        ))
     }
     #[cfg(not(windows))]
     {
-        let _ = sample_rate;
+        let _ = (sample_rate, device_id);
         Err("WASAPI is only available on Windows".into())
     }
 }

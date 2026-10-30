@@ -1,7 +1,7 @@
 //! System tray: start/stop a recording and reopen the window while Traktor plays.
 
 use crate::capture::Engine;
-use crate::state::{RecorderState, RecordingSettings};
+use crate::state::{RecorderError, RecorderState, RecordingSettings};
 use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -16,11 +16,21 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
-        &[&start, &stop, &PredefinedMenuItem::separator(app)?, &show, &quit],
+        &[
+            &start,
+            &stop,
+            &PredefinedMenuItem::separator(app)?,
+            &show,
+            &quit,
+        ],
     )?;
 
     TrayIconBuilder::with_id(TRAY_ID)
-        .icon(app.default_window_icon().cloned().expect("bundled tray icon"))
+        .icon(
+            app.default_window_icon()
+                .cloned()
+                .expect("bundled tray icon"),
+        )
         .tooltip("NVRBEATS — Ready")
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -29,6 +39,8 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             "stop" => {
                 if let Some(engine) = app.try_state::<Arc<Engine>>() {
                     let _ = engine.stop();
+                    let settings = crate::last_settings(app);
+                    let _ = engine.apply_capture_settings(&settings);
                 }
             }
             "show" => show_window(app),
@@ -41,7 +53,12 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
                 show_window(tray.app_handle());
             }
         })
@@ -60,7 +77,9 @@ fn show_window<R: Runtime>(app: &AppHandle<R>) {
 /// The tray uses the settings the UI last pushed down, so a tray start writes
 /// to the same folder and format as the dashboard button.
 fn start_from_tray<R: Runtime>(app: &AppHandle<R>) {
-    let Some(engine) = app.try_state::<Arc<Engine>>() else { return };
+    let Some(engine) = app.try_state::<Arc<Engine>>() else {
+        return;
+    };
     if *engine.state.lock() == RecorderState::Recording {
         return;
     }
@@ -70,7 +89,21 @@ fn start_from_tray<R: Runtime>(app: &AppHandle<R>) {
         "{}.wav",
         chrono::Local::now().format("%Y-%m-%d %H-%M-%S")
     ));
-    let _ = engine.start(&settings, target);
+    let device_id = if settings.follow_windows_default {
+        None
+    } else {
+        settings.output_device_id.clone()
+    };
+    let result = crate::commands::check_loopback_access(settings.sample_rate, device_id)
+        .and_then(|_| engine.start(&settings, target).map(|_| ()));
+    if let Err(detail) = result {
+        *engine.error.lock() = Some(RecorderError {
+            code: "NO_AUDIO_DEVICE".into(),
+            message: "The selected output device or sample rate is unavailable.".into(),
+            detail: Some(detail),
+        });
+        engine.set_state(RecorderState::Error);
+    }
 }
 
 /// Keep the tray tooltip in sync with the recorder state.

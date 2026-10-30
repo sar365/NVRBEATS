@@ -91,11 +91,16 @@ function SettingsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(["WAV", "FLAC", "MP3", "AAC"] as AudioFormat[]).map((f) => (
-                  <SelectItem key={f} value={f}>
-                    {f}
-                  </SelectItem>
-                ))}
+                <SelectItem value="WAV">WAV</SelectItem>
+                <SelectItem value="FLAC" disabled>
+                  FLAC — unsupported
+                </SelectItem>
+                <SelectItem value="MP3" disabled>
+                  MP3 — unsupported
+                </SelectItem>
+                <SelectItem value="AAC" disabled>
+                  AAC — unsupported
+                </SelectItem>
               </SelectContent>
             </Select>
           </Field>
@@ -151,28 +156,40 @@ function SettingsPage() {
         </Section>
 
         <Section title="Audio">
-          <Field label="PC default output" hint="Detected by the native Windows layer">
-            <Select value={devices.find((d) => d.isDefault)?.id ?? ""} disabled>
+          <Field label="Output device">
+            <Select
+              value={
+                settings.followWindowsDefault ? "follow-default" : (settings.outputDeviceId ?? "")
+              }
+              onValueChange={(value) =>
+                value === "follow-default"
+                  ? update({ followWindowsDefault: true, outputDeviceId: null })
+                  : update({ followWindowsDefault: false, outputDeviceId: value })
+              }
+              disabled={devices.length === 0}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="No device detected" />
+                <SelectValue placeholder="No output devices available" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="follow-default">Follow Windows Default</SelectItem>
                 {devices.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
+                  <SelectItem key={d.id} value={d.id} disabled={d.status !== "CONNECTED"}>
                     {d.name}
+                    {d.isDefault ? " (Windows default)" : ""}
+                    {d.status !== "CONNECTED" ? " (unavailable)" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Follow Windows default output">
-            <div className="flex justify-end">
-              <Switch
-                checked={settings.followWindowsDefault}
-                onCheckedChange={(v) => update({ followWindowsDefault: v })}
-              />
-            </div>
-          </Field>
+          {!settings.followWindowsDefault &&
+          !devices.some((device) => device.id === settings.outputDeviceId) ? (
+            <p className="text-xs text-warn">
+              The saved output device is unavailable. Select another device or Follow Windows
+              Default.
+            </p>
+          ) : null}
           <Field label="Device-change behavior">
             <Select
               value={settings.deviceChangeBehavior}

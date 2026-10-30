@@ -2,7 +2,7 @@
  * NativeAudioBridge — the boundary between this UI and the native Windows engine.
  *
  * Everything below MUST be implemented natively (Rust/Tauri + Windows APIs):
- *   - WASAPI loopback capture of the PC default output
+ *   - WASAPI loopback capture of the selected Windows render endpoint
  *   - Windows default-output detection and monitoring
  *   - bounded audio buffer + asynchronous WAV writer
  *   - background/system-tray operation
@@ -21,6 +21,8 @@ import type {
   RecordingSettings,
   RecordingStatus,
   TrimRequest,
+  UnifiedAppConfig,
+  UnifiedConfigResult,
 } from "./types";
 
 export interface NativeAudioBridge {
@@ -31,6 +33,8 @@ export interface NativeAudioBridge {
   getDefaultOutputDevice(): Promise<OutputDevice | null>;
   getOutputDevices(): Promise<OutputDevice[]>;
   getCurrentOutputDevice(): Promise<OutputDevice | null>;
+  getUnifiedConfig(): Promise<UnifiedConfigResult>;
+  saveUnifiedConfig(config: UnifiedAppConfig): Promise<void>;
 
   startRecording(settings: RecordingSettings): Promise<RecordingStatus>;
   stopRecording(): Promise<RecordingStatus>;
@@ -47,7 +51,7 @@ export interface NativeAudioBridge {
   /** Free space on the volume holding a specific folder. */
   getFolderDiskSpace(folder: string): Promise<DiskSpace>;
   /** Try opening (and releasing) a WASAPI loopback client. Rejects with the reason on failure. */
-  checkLoopbackAccess(sampleRate: number): Promise<string>;
+  checkLoopbackAccess(sampleRate: number, deviceId?: string | null): Promise<string>;
   recoverRecording(): Promise<RecordingStatus>;
   discardRecovery(): Promise<RecordingStatus>;
 
@@ -57,7 +61,9 @@ export interface NativeAudioBridge {
   convertRecording(request: ConversionRequest): Promise<{ outputPath: string }>;
   deleteRecordingFile(path: string): Promise<void>;
   /** Trim the finalized file to the chosen start/end points (native, lossless cut). */
-  trimRecording(request: TrimRequest): Promise<{ path: string; durationSec: number; fileSizeBytes: number }>;
+  trimRecording(
+    request: TrimRequest,
+  ): Promise<{ path: string; durationSec: number; fileSizeBytes: number }>;
   /** Copy a recording to a folder the user picked. */
   exportRecording(request: ExportRequest): Promise<{ outputPath: string }>;
   /** Push the current settings down so tray-started recordings match the UI. */

@@ -1,11 +1,12 @@
 //! NVRBEATS — native Windows engine.
 //!
-//! Capture path: Traktor Pro 4 -> Windows Audio -> PC Default Output
+//! Capture path: Traktor Pro 4 -> Windows Audio -> selected render endpoint
 //!               -> WASAPI loopback -> local recorder -> WAV on disk.
 //! No Web Audio, no microphone, no cloud.
 
 pub mod capture;
 pub mod commands;
+pub mod config;
 pub mod devices;
 pub mod disk;
 pub mod state;
@@ -13,8 +14,9 @@ pub mod tray;
 pub mod wav;
 
 use capture::Engine;
+use config::{AppConfig, ConfigLoadResponse, ConfigStore};
 use parking_lot::Mutex;
-use state::{AdvancedSettings, AutoRecordSettings, RecordingSettings};
+use state::RecordingSettings;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, Runtime, WindowEvent};
 
@@ -22,40 +24,7 @@ use tauri::{AppHandle, Manager, Runtime, WindowEvent};
 pub struct LastSettings(pub Mutex<RecordingSettings>);
 
 pub fn default_settings() -> RecordingSettings {
-    let folder = dirs_music_folder();
-    RecordingSettings {
-        format: "WAV".into(),
-        sample_rate: 48_000,
-        bit_depth: 24,
-        folder,
-        filename_template: "{date} {time} {set}".into(),
-        follow_windows_default: true,
-        device_change_behavior: "CONTINUE".into(),
-        auto_record: AutoRecordSettings {
-            enabled: false,
-            start_threshold_db: -40.0,
-            stop_after_silence_sec: 20.0,
-            minimum_length_sec: 60.0,
-        },
-        appearance: "dark".into(),
-        minimize_to_tray: true,
-        start_with_windows: false,
-        advanced: AdvancedSettings {
-            buffer_size_ms: 200,
-            crash_recovery: true,
-            diagnostic_logging: false,
-        },
-    }
-}
-
-fn dirs_music_folder() -> String {
-    if let Ok(profile) = std::env::var("USERPROFILE") {
-        // Keep the existing folder so users upgrading from DJ Set Recorder
-        // continue to see their recordings in the library.
-        format!("{profile}\\Music\\DJ Set Recorder")
-    } else {
-        "Recordings".into()
-    }
+    AppConfig::default().to_recording_settings()
 }
 
 pub fn last_settings<R: Runtime>(app: &AppHandle<R>) -> RecordingSettings {
@@ -65,22 +34,68 @@ pub fn last_settings<R: Runtime>(app: &AppHandle<R>) -> RecordingSettings {
 }
 
 #[tauri::command]
-fn set_settings(state: tauri::State<'_, LastSettings>, settings: RecordingSettings) {
+fn get_unified_config(store: tauri::State<'_, ConfigStore>) -> ConfigLoadResponse {
+    store.load_state()
+}
+
+#[tauri::command]
+fn save_unified_config(
+    store: tauri::State<'_, ConfigStore>,
+    last_settings: tauri::State<'_, LastSettings>,
+    engine: tauri::State<'_, Arc<Engine>>,
+    config: AppConfig,
+) -> Result<(), String> {
+    config.validate()?;
+    let recording_settings = config.to_recording_settings();
+    store.save(config.clone())?;
+    if engine.active.lock().is_none() {
+        engine.apply_capture_settings(&recording_settings)?;
+    }
+    *last_settings.0.lock() = recording_settings;
+    Ok(())
+}
+
+/// Compatibility bridge for the existing UI while it migrates from WebView
+/// localStorage to get_unified_config/save_unified_config.
+#[tauri::command]
+fn set_settings(
+    state: tauri::State<'_, LastSettings>,
+    store: tauri::State<'_, ConfigStore>,
+    engine: tauri::State<'_, Arc<Engine>>,
+    settings: RecordingSettings,
+) -> Result<(), String> {
+    let mut config = store.get();
+    config.apply_legacy_settings(&settings)?;
+    config.validate()?;
+    store.save(config)?;
+    if engine.active.lock().is_none() {
+        engine.apply_capture_settings(&settings)?;
+    }
     *state.0.lock() = settings;
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let engine: Arc<Engine> = Engine::new();
-    let settings = default_settings();
+    let config_store = ConfigStore::open_default();
+    if let Some(warning) = config_store.warning() {
+        log::warn!("Configuration load warning: {warning}");
+    }
+    let settings = config_store.get().to_recording_settings();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(engine.clone())
         .manage(LastSettings(Mutex::new(settings.clone())))
+        .manage(config_store)
         .setup(move |app| {
             tray::build(app.handle())?;
+
+            if let Err(error) = engine.apply_capture_settings(&settings) {
+                log::error!("Unable to apply persisted audio capture settings: {error}");
+            }
 
             // Look for a `.part` file left behind by a crash before doing anything else.
             engine.scan_recovery(std::path::Path::new(&settings.folder));
@@ -107,6 +122,8 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            get_unified_config,
+            save_unified_config,
             set_settings,
             commands::get_default_output_device,
             commands::get_output_devices,

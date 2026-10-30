@@ -17,12 +17,19 @@ import type {
   RecordingSettings,
   RecordingStatus,
   TrimRequest,
+  UnifiedAppConfig,
+  UnifiedConfigResult,
 } from "./types";
 
 const MOCK_DEVICES: OutputDevice[] = [
   { id: "mock-realtek", name: "Speakers (Realtek(R) Audio)", isDefault: true, status: "CONNECTED" },
   { id: "mock-headphones", name: "Headphones (2- HD 25)", isDefault: false, status: "CONNECTED" },
-  { id: "mock-hdmi", name: "LG TV (NVIDIA High Definition Audio)", isDefault: false, status: "CONNECTED" },
+  {
+    id: "mock-hdmi",
+    name: "LG TV (NVIDIA High Definition Audio)",
+    isDefault: false,
+    status: "CONNECTED",
+  },
 ];
 
 function emptyStatus(): RecordingStatus {
@@ -44,6 +51,33 @@ class MockNativeAudioBridge implements NativeAudioBridge {
 
   private status: RecordingStatus = emptyStatus();
   private startedAt = 0;
+  private config: UnifiedAppConfig = {
+    schemaVersion: 1,
+    profile: { id: "default", name: "Default" },
+    capture: {
+      devicePolicy: "follow_windows_default",
+      deviceId: null,
+      container: "wav",
+      sampleRateHz: 48000,
+      bitDepth: 24,
+      channels: 2,
+      bufferMs: 200,
+      onDeviceChange: "continue_on_old_device",
+    },
+    recording: {
+      folder: "Music\\DJ Sets",
+      filenameTemplate: "DJ Set - {date} - {time}",
+      autoRecord: {
+        enabled: false,
+        startThresholdDbfs: -40,
+        stopAfterSilenceSec: 30,
+        minimumLengthSec: 60,
+      },
+    },
+    app: { theme: "dark", minimizeToTray: true, launchAtLogin: false },
+    recovery: { keepIncompleteRecordings: true },
+    diagnostics: { enabled: false },
+  };
 
   async getDefaultOutputDevice() {
     return MOCK_DEVICES.find((d) => d.isDefault) ?? null;
@@ -54,11 +88,26 @@ class MockNativeAudioBridge implements NativeAudioBridge {
   }
 
   async getCurrentOutputDevice() {
+    if (this.config.capture.devicePolicy === "specific_device") {
+      return MOCK_DEVICES.find((device) => device.id === this.config.capture.deviceId) ?? null;
+    }
     return this.getDefaultOutputDevice();
   }
 
+  async getUnifiedConfig(): Promise<UnifiedConfigResult> {
+    return { config: structuredClone(this.config), needsLegacyMigration: false };
+  }
+
+  async saveUnifiedConfig(config: UnifiedAppConfig): Promise<void> {
+    this.config = structuredClone(config);
+  }
+
   async startRecording(settings: RecordingSettings): Promise<RecordingStatus> {
-    this.status = { ...emptyStatus(), state: "STARTING" };
+    this.status = {
+      ...emptyStatus(),
+      state: "STARTING",
+      device: await this.getCurrentOutputDevice(),
+    };
     await delay(450);
     this.startedAt = Date.now();
     const stamp = new Date().toISOString().slice(0, 19).replace("T", " ").replace(/:/g, "-");
@@ -129,7 +178,7 @@ class MockNativeAudioBridge implements NativeAudioBridge {
   }
 
   /** Simulated — the browser preview never opens WASAPI. */
-  async checkLoopbackAccess(sampleRate: number): Promise<string> {
+  async checkLoopbackAccess(sampleRate: number, _deviceId?: string | null): Promise<string> {
     await delay(250);
     return `Simulated loopback at ${sampleRate} Hz (preview)`;
   }

@@ -36,6 +36,8 @@ import type {
   RecordingSettings,
   RecordingStatus,
   TrimRequest,
+  UnifiedAppConfig,
+  UnifiedConfigResult,
 } from "./types";
 
 type Invoke = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -58,6 +60,9 @@ export class TauriAudioBridge implements NativeAudioBridge {
   getDefaultOutputDevice = () => this.call<OutputDevice | null>("get_default_output_device");
   getOutputDevices = () => this.call<OutputDevice[]>("get_output_devices");
   getCurrentOutputDevice = () => this.call<OutputDevice | null>("get_current_output_device");
+  getUnifiedConfig = () => this.call<UnifiedConfigResult>("get_unified_config");
+  saveUnifiedConfig = (config: UnifiedAppConfig) =>
+    this.call<void>("save_unified_config", { config });
 
   startRecording = (settings: RecordingSettings) =>
     this.call<RecordingStatus>("start_recording", { settings });
@@ -73,8 +78,8 @@ export class TauriAudioBridge implements NativeAudioBridge {
   getDiskSpace = () => this.call<DiskSpace>("get_disk_space");
   getFolderDiskSpace = (folder: string) =>
     this.call<DiskSpace>("get_folder_disk_space", { folder });
-  checkLoopbackAccess = (sampleRate: number) =>
-    this.call<string>("check_loopback_access", { sampleRate });
+  checkLoopbackAccess = (sampleRate: number, deviceId?: string | null) =>
+    this.call<string>("check_loopback_access", { sampleRate, deviceId: deviceId ?? null });
   recoverRecording = () => this.call<RecordingStatus>("recover_recording");
   discardRecovery = () => this.call<RecordingStatus>("discard_recovery");
 

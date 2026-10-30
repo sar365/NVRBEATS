@@ -46,6 +46,7 @@ export interface RecordingSettings {
   folder: string;
   filenameTemplate: string;
   followWindowsDefault: boolean;
+  outputDeviceId: string | null;
   deviceChangeBehavior: "CONTINUE" | "STOP" | "SWITCH";
   autoRecord: {
     enabled: boolean;
@@ -64,6 +65,40 @@ export interface RecordingSettings {
     crashRecovery: boolean;
     diagnosticLogging: boolean;
   };
+}
+
+/** Persisted native configuration contract (camelCase JSON from Rust). */
+export interface UnifiedAppConfig {
+  schemaVersion: number;
+  profile: { id: string; name: string };
+  capture: {
+    devicePolicy: "follow_windows_default" | "specific_device";
+    deviceId: string | null;
+    container: "wav";
+    sampleRateHz: number;
+    bitDepth: number;
+    channels: number;
+    bufferMs: number;
+    onDeviceChange: "stop_and_notify" | "switch_to_default" | "continue_on_old_device";
+  };
+  recording: {
+    folder: string;
+    filenameTemplate: string;
+    autoRecord: {
+      enabled: boolean;
+      startThresholdDbfs: number;
+      stopAfterSilenceSec: number;
+      minimumLengthSec: number;
+    };
+  };
+  app: { theme: "dark" | "light"; minimizeToTray: boolean; launchAtLogin: boolean };
+  recovery: { keepIncompleteRecordings: boolean };
+  diagnostics: { enabled: boolean };
+}
+
+export interface UnifiedConfigResult {
+  config: UnifiedAppConfig;
+  needsLegacyMigration: boolean;
 }
 
 export type RecorderErrorCode =
