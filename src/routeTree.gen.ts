@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as SetupRouteImport } from './routes/setup'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as LibraryIndexRouteImport } from './routes/library.index'
 import { Route as LibraryIdRouteImport } from './routes/library.$id'
@@ -37,11 +36,6 @@ const McpRoute = McpRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SetupRoute = SetupRouteImport.update({
-  id: '/setup',
-  path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
@@ -71,7 +65,6 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
-  '/setup': typeof SetupRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/library/$id': typeof LibraryIdRoute
   '/library/': typeof LibraryIndexRoute
@@ -82,7 +75,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
-  '/setup': typeof SetupRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/library/$id': typeof LibraryIdRoute
   '/library': typeof LibraryIndexRoute
@@ -94,7 +86,6 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
-  '/setup': typeof SetupRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/library/$id': typeof LibraryIdRoute
   '/library/': typeof LibraryIndexRoute
@@ -107,7 +98,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mcp'
     | '/settings'
-    | '/setup'
     | '/.well-known/oauth-protected-resource'
     | '/library/$id'
     | '/library/'
@@ -118,7 +108,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mcp'
     | '/settings'
-    | '/setup'
     | '/.well-known/oauth-protected-resource'
     | '/library/$id'
     | '/library'
@@ -129,7 +118,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mcp'
     | '/settings'
-    | '/setup'
     | '/.well-known/oauth-protected-resource'
     | '/library/$id'
     | '/library/'
@@ -141,7 +129,6 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   McpRoute: typeof McpRoute
   SettingsRoute: typeof SettingsRoute
-  SetupRoute: typeof SetupRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   LibraryIdRoute: typeof LibraryIdRoute
   LibraryIndexRoute: typeof LibraryIndexRoute
@@ -176,13 +163,6 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/setup': {
-      id: '/setup'
-      path: '/setup'
-      fullPath: '/setup'
-      preLoaderRoute: typeof SetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.well-known/oauth-protected-resource': {
@@ -221,7 +201,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   McpRoute: McpRoute,
   SettingsRoute: SettingsRoute,
-  SetupRoute: SetupRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   LibraryIdRoute: LibraryIdRoute,
