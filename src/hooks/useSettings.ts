@@ -31,18 +31,45 @@ export function useSettings() {
         const result = await bridge.getUnifiedConfig();
         let nextConfig = result.config;
         let nextSettings = configToSettings(nextConfig);
+        let legacy: string | null = null;
         if (result.needsLegacyMigration) {
-          const legacy =
+          legacy =
             typeof window !== "undefined" ? window.localStorage.getItem(LEGACY_SETTINGS_KEY) : null;
           if (legacy !== null) {
             nextSettings = mergeLegacySettings(legacy, nextConfig);
           }
+        }
+
+        let repairedUnavailableDevice = false;
+        if (!nextSettings.followWindowsDefault && nextSettings.outputDeviceId) {
+          try {
+            const [devices, defaultDevice] = await Promise.all([
+              bridge.getOutputDevices(),
+              bridge.getDefaultOutputDevice(),
+            ]);
+            const selectedId = nextSettings.outputDeviceId;
+            const selectedDeviceExists =
+              devices.some((device) => device.id === selectedId) ||
+              defaultDevice?.id === selectedId;
+            if (!selectedDeviceExists) {
+              nextSettings = { ...nextSettings, followWindowsDefault: true, outputDeviceId: null };
+              repairedUnavailableDevice = true;
+            }
+          } catch (error) {
+            // If Windows device enumeration itself fails, preserve the explicit choice;
+            // lack of enumeration is not proof that its endpoint ID is stale.
+            console.warn("Unable to validate the saved output-device ID", error);
+          }
+        }
+
+        if (result.needsLegacyMigration || repairedUnavailableDevice) {
           const migrated = settingsToConfig(nextSettings, nextConfig);
           await saveConfig(migrated);
           if (legacy !== null && typeof window !== "undefined")
             window.localStorage.removeItem(LEGACY_SETTINGS_KEY);
           nextConfig = migrated;
         }
+
         if (alive) {
           configRef.current = nextConfig;
           settingsRef.current = nextSettings;

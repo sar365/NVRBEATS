@@ -33,6 +33,30 @@ pub fn last_settings<R: Runtime>(app: &AppHandle<R>) -> RecordingSettings {
         .unwrap_or_else(default_settings)
 }
 
+#[cfg(windows)]
+fn output_device_id_is_available(id: &str) -> Option<bool> {
+    let id = id.to_owned();
+    std::thread::spawn(move || {
+        if wasapi::initialize_mta().ok().is_err() {
+            return None;
+        }
+        match devices::output_device_by_id(&id) {
+            Ok(_) => Some(true),
+            Err(error)
+                if error.starts_with(&format!("Output device endpoint is unavailable: {id}")) =>
+            {
+                Some(false)
+            }
+            Err(error) => {
+                log::warn!("Could not verify saved output endpoint {id}: {error}");
+                None
+            }
+        }
+    })
+    .join()
+    .unwrap_or(None)
+}
+
 #[tauri::command]
 fn get_unified_config(store: tauri::State<'_, ConfigStore>) -> ConfigLoadResponse {
     store.load_state()
@@ -82,7 +106,22 @@ pub fn run() {
     if let Some(warning) = config_store.warning() {
         log::warn!("Configuration load warning: {warning}");
     }
-    let settings = config_store.get().to_recording_settings();
+    let mut startup_config = config_store.get();
+    #[cfg(windows)]
+    if let Some(unavailable_id) =
+        startup_config.follow_windows_default_if_unavailable(output_device_id_is_available)
+    {
+        log::warn!(
+            "Saved output endpoint is unavailable at startup; switching to Follow Windows Default. Endpoint id: {unavailable_id}"
+        );
+        if let Err(error) = config_store.save(startup_config.clone()) {
+            log::warn!("Could not persist the startup output-device fallback: {error}");
+            if let Err(runtime_error) = config_store.set_runtime_config(startup_config.clone()) {
+                log::error!("Could not apply the runtime output-device fallback: {runtime_error}");
+            }
+        }
+    }
+    let settings = startup_config.to_recording_settings();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())

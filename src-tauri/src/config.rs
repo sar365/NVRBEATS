@@ -161,6 +161,23 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
+    /// Switch an unavailable saved endpoint to Windows default without overriding a valid choice.
+    pub fn follow_windows_default_if_unavailable(
+        &mut self,
+        is_available: impl FnOnce(&str) -> Option<bool>,
+    ) -> Option<String> {
+        if self.capture.device_policy != DevicePolicy::SpecificDevice {
+            return None;
+        }
+        let id = self.capture.device_id.clone()?;
+        if is_available(&id) != Some(false) {
+            return None;
+        }
+        self.capture.device_policy = DevicePolicy::FollowWindowsDefault;
+        self.capture.device_id = None;
+        Some(id)
+    }
+
     /// Validate semantic constraints before a configuration is used or saved.
     pub fn validate(&self) -> Result<(), String> {
         if self.schema_version != CONFIG_SCHEMA_VERSION {
@@ -443,6 +460,13 @@ impl ConfigStore {
         self.config.lock().clone()
     }
 
+    /// Keep a repaired startup config visible in this process if durable save fails.
+    pub fn set_runtime_config(&self, config: AppConfig) -> Result<(), String> {
+        config.validate()?;
+        *self.config.lock() = config;
+        Ok(())
+    }
+
     pub fn load_state(&self) -> ConfigLoadResponse {
         ConfigLoadResponse {
             config: self.get(),
@@ -554,9 +578,59 @@ mod tests {
     fn defaults_are_valid_and_stereo_wav() {
         let config = AppConfig::default();
         assert!(config.validate().is_ok());
+        let settings = config.to_recording_settings();
+        assert!(settings.follow_windows_default);
+        assert!(settings.output_device_id.is_none());
         assert_eq!(config.capture.channels, 2);
         assert_eq!(config.capture.container, AudioContainer::Wav);
         assert_eq!(config.capture.sample_rate_hz, 48_000);
+    }
+
+    #[test]
+    fn unavailable_saved_endpoint_is_repaired_to_windows_default() {
+        let mut config = AppConfig::default();
+        config.capture.device_policy = DevicePolicy::SpecificDevice;
+        config.capture.device_id = Some("stale-endpoint-id".into());
+
+        let repaired_id = config
+            .follow_windows_default_if_unavailable(|_| Some(false))
+            .expect("missing endpoint should be repaired");
+
+        assert_eq!(repaired_id, "stale-endpoint-id");
+        assert_eq!(
+            config.capture.device_policy,
+            DevicePolicy::FollowWindowsDefault
+        );
+        assert!(config.capture.device_id.is_none());
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn available_saved_endpoint_remains_selected() {
+        let mut config = AppConfig::default();
+        config.capture.device_policy = DevicePolicy::SpecificDevice;
+        config.capture.device_id = Some("valid-endpoint-id".into());
+
+        assert_eq!(
+            config.follow_windows_default_if_unavailable(|id| { Some(id == "valid-endpoint-id") }),
+            None
+        );
+        assert_eq!(config.capture.device_policy, DevicePolicy::SpecificDevice);
+        assert_eq!(
+            config.capture.device_id.as_deref(),
+            Some("valid-endpoint-id")
+        );
+    }
+
+    #[test]
+    fn uncertain_endpoint_enumeration_preserves_the_saved_choice() {
+        let mut config = AppConfig::default();
+        config.capture.device_policy = DevicePolicy::SpecificDevice;
+        config.capture.device_id = Some("endpoint-id".into());
+
+        assert_eq!(config.follow_windows_default_if_unavailable(|_| None), None);
+        assert_eq!(config.capture.device_policy, DevicePolicy::SpecificDevice);
+        assert_eq!(config.capture.device_id.as_deref(), Some("endpoint-id"));
     }
 
     #[test]

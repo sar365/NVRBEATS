@@ -346,6 +346,10 @@ fn run_loopback(engine: &Arc<Engine>) -> Result<(), String> {
     let mut queue: std::collections::VecDeque<u8> = std::collections::VecDeque::new();
     audio_client.start_stream().map_err(|e| e.to_string())?;
     *engine.current_device_id.lock() = Some(actual_id);
+    *engine.error.lock() = None;
+    if engine.active.lock().is_some() {
+        engine.set_state(RecorderState::Recording);
+    }
 
     loop {
         if engine.capture_generation.load(Ordering::SeqCst) != generation {

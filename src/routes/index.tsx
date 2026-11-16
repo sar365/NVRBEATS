@@ -95,7 +95,6 @@ function RecorderPage() {
     await start(settings);
   }
 
-
   useEffect(() => {
     void bridge.getDefaultOutputDevice().then(setDevice);
   }, [bridge]);
@@ -111,6 +110,7 @@ function RecorderPage() {
   const recording = status.state === "RECORDING";
   const transitioning =
     status.state === "STARTING" || status.state === "STOPPING" || status.state === "FINALIZING";
+  const displayedDevice = status.device ?? (settings.followWindowsDefault ? device : null);
 
   // Keyboard shortcuts: R record, S stop, M minimize/restore.
   useEffect(() => {
@@ -119,8 +119,7 @@ function RecorderPage() {
       const target = e.target as HTMLElement | null;
       if (
         target &&
-        (target.isContentEditable ||
-          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+        (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
       )
         return;
       const key = e.key.toLowerCase();
@@ -203,7 +202,9 @@ function RecorderPage() {
     };
     save(meta);
     setPendingFinal(null);
-    toast.success(trim ? "Trimmed recording saved to your library." : "Recording saved to your library.");
+    toast.success(
+      trim ? "Trimmed recording saved to your library." : "Recording saved to your library.",
+    );
   }
 
   return (
@@ -236,8 +237,6 @@ function RecorderPage() {
           />
         ) : null}
 
-
-
         <section className="rounded-xl border border-border bg-surface p-6">
           <div className="flex items-center justify-between">
             <span
@@ -254,7 +253,10 @@ function RecorderPage() {
           </div>
 
           <div className="mt-5 border-t border-border pt-5">
-            <DeviceStatus device={status.device ?? device} />
+            <DeviceStatus
+              device={displayedDevice}
+              followWindowsDefault={settings.followWindowsDefault}
+            />
           </div>
 
           <div className="mt-6 space-y-5">
@@ -353,13 +355,16 @@ function RecorderPage() {
 
         <section className="rounded-xl border border-border bg-surface p-5">
           <h2 className="label-caps">Recording Source</h2>
-          <p className="mt-1 text-sm font-medium">PC Default Output</p>
+          <p className="mt-1 text-sm font-medium">
+            {settings.followWindowsDefault ? "PC Default Output" : "Selected Output Device"}
+          </p>
           <p className="text-sm text-muted-foreground">
-            {(status.device ?? device)?.name ?? "No playback device detected"}
+            {displayedDevice?.name ?? "No playback device detected"}
           </p>
           <p className="mt-3 max-w-2xl text-xs text-muted-foreground">
-            Traktor Pro 4 → Windows Audio → PC Default Output → WASAPI Loopback → Local Recorder →
-            WAV. Nothing is uploaded, and no microphone is used.
+            Traktor Pro 4 → Windows Audio →{" "}
+            {settings.followWindowsDefault ? "PC Default Output" : "Selected Playback Device"} →
+            WASAPI Loopback → Local Recorder → WAV. Nothing is uploaded, and no microphone is used.
           </p>
         </section>
 

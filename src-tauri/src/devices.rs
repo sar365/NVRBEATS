@@ -2,6 +2,25 @@
 
 use crate::state::OutputDevice;
 
+#[cfg(any(windows, test))]
+/// WASAPI endpoint IDs are opaque identifiers; names and partial matches are not safe substitutes.
+fn find_endpoint_index_by_id(
+    requested_id: &str,
+    endpoint_ids: impl IntoIterator<Item = Result<String, String>>,
+) -> (Option<usize>, usize) {
+    let mut id_read_errors = 0;
+    for (index, endpoint_id) in endpoint_ids.into_iter().enumerate() {
+        match endpoint_id {
+            Ok(endpoint_id) if endpoint_id == requested_id => {
+                return (Some(index), id_read_errors);
+            }
+            Ok(_) => {}
+            Err(_) => id_read_errors += 1,
+        }
+    }
+    (None, id_read_errors)
+}
+
 #[cfg(windows)]
 pub fn default_output_device() -> Option<OutputDevice> {
     use wasapi::*;
@@ -10,7 +29,7 @@ pub fn default_output_device() -> Option<OutputDevice> {
     let name = device
         .get_friendlyname()
         .unwrap_or_else(|_| "Default Output".into());
-    let id = device.get_id().unwrap_or_else(|_| name.clone());
+    let id = device.get_id().ok()?;
     Some(OutputDevice {
         id,
         name,
@@ -23,15 +42,34 @@ pub fn default_output_device() -> Option<OutputDevice> {
 pub fn output_device_by_id(id: &str) -> Result<wasapi::Device, String> {
     use wasapi::*;
     let collection = DeviceCollection::new(&Direction::Render).map_err(|e| e.to_string())?;
-    for index in 0..collection.get_nbr_devices().map_err(|e| e.to_string())? {
-        let device = collection
-            .get_device_at_index(index)
-            .map_err(|e| e.to_string())?;
-        if device.get_id().map_err(|e| e.to_string())? == id {
-            return Ok(device);
+    let count = collection.get_nbr_devices().map_err(|e| e.to_string())?;
+    let mut devices = Vec::new();
+    let mut enumeration_errors = 0;
+    for index in 0..count {
+        match collection.get_device_at_index(index) {
+            Ok(device) => devices.push(device),
+            Err(_) => enumeration_errors += 1,
         }
     }
-    Err(format!("Output device endpoint is unavailable: {id}"))
+    let endpoint_ids = devices
+        .iter()
+        .map(|device| device.get_id().map_err(|error| error.to_string()))
+        .collect::<Vec<_>>();
+    let (match_index, id_read_errors) = find_endpoint_index_by_id(id, endpoint_ids);
+    if let Some(index) = match_index {
+        return devices
+            .into_iter()
+            .nth(index)
+            .ok_or_else(|| format!("Output device endpoint is unavailable: {id}"));
+    }
+    let lookup_errors = enumeration_errors + id_read_errors;
+    if lookup_errors > 0 {
+        Err(format!(
+            "Output device endpoint is unavailable: {id} (could not inspect {lookup_errors} endpoint(s))"
+        ))
+    } else {
+        Err(format!("Output device endpoint is unavailable: {id}"))
+    }
 }
 
 #[cfg(windows)]
@@ -63,7 +101,9 @@ pub fn output_devices() -> Vec<OutputDevice> {
                 let name = device
                     .get_friendlyname()
                     .unwrap_or_else(|_| "Output".into());
-                let id = device.get_id().unwrap_or_else(|_| name.clone());
+                let Ok(id) = device.get_id() else {
+                    continue;
+                };
                 let is_default = default_id.as_deref() == Some(id.as_str());
                 out.push(OutputDevice {
                     id,
@@ -75,6 +115,37 @@ pub fn output_devices() -> Vec<OutputDevice> {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::find_endpoint_index_by_id;
+
+    #[test]
+    fn endpoint_lookup_skips_unreadable_ids_and_matches_exact_id() {
+        let (index, errors) = find_endpoint_index_by_id(
+            "endpoint-b",
+            vec![
+                Err("ID unavailable".into()),
+                Ok("endpoint-a".into()),
+                Ok("endpoint-b".into()),
+            ],
+        );
+        assert_eq!(index, Some(2));
+        assert_eq!(errors, 1);
+    }
+
+    #[test]
+    fn endpoint_lookup_does_not_match_names_or_case_variants() {
+        let (index, _) = find_endpoint_index_by_id(
+            "endpoint-b",
+            vec![
+                Ok("Speaker (Realtek(R) Audio)".into()),
+                Ok("ENDPOINT-B".into()),
+            ],
+        );
+        assert_eq!(index, None);
+    }
 }
 
 #[cfg(not(windows))]

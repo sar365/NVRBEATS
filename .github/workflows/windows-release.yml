@@ -59,6 +59,10 @@ jobs:
       - name: Build the desktop app without installers
         run: bunx tauri build --no-bundle
 
+      - name: Run Rust unit tests
+        working-directory: src-tauri
+        run: cargo test --lib
+
       # --no-binary-patching preserves the app's signature after Tauri packages it.
       - name: Build MSI and NSIS installers
         run: bunx tauri bundle --no-binary-patching
@@ -173,6 +177,10 @@ jobs:
       # Build the app first so its executable and native DLLs can be signed before Tauri embeds them.
       - name: Build the desktop app without installers
         run: bunx tauri build --no-bundle
+
+      - name: Run Rust unit tests
+        working-directory: src-tauri
+        run: cargo test --lib
 
       - name: Sign in to Azure with GitHub OIDC
         if: github.event_name != 'pull_request' && steps.signing.outputs.configured == 'true'
