@@ -1,7 +1,7 @@
 name: Windows Release Build
 
 # Builds NVRBEATS on Windows, signs release binaries with Microsoft Artifact Signing,
-# packages MSI/NSIS installers, and publishes versioned GitHub Releases.
+# packages a portable ZIP and MSI/NSIS installers, and publishes versioned GitHub Releases.
 #
 # Azure Artifact Signing is optional: without its nvrbeats-signing environment
 # configuration, release installers are built and published unsigned.
@@ -34,7 +34,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -63,6 +63,10 @@ jobs:
         working-directory: src-tauri
         run: cargo test --lib
 
+      - name: Package portable ZIP
+        shell: pwsh
+        run: ./scripts/package-portable.ps1
+
       # --no-binary-patching preserves the app's signature after Tauri packages it.
       - name: Build MSI and NSIS installers
         run: bunx tauri bundle --no-binary-patching
@@ -71,7 +75,7 @@ jobs:
         run: bun scripts/verify-windows-installers.mjs
 
       - name: Set up Microsoft WinApp CLI
-        uses: microsoft/setup-WinAppCli@v0.1
+        uses: microsoft/setup-WinAppCli@v0.3
 
       - name: Package Microsoft Store MSIX
         shell: pwsh
@@ -85,8 +89,15 @@ jobs:
         shell: pwsh
         run: Write-Host 'This is a preview MSIX, not ready for Store submission. Reserve the app name in Partner Center, then set STORE_PACKAGE_NAME and STORE_PUBLISHER repository variables. See docs/MICROSOFT-STORE.md.'
 
+      - name: Upload portable ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-portable
+          path: dist/portable/*.zip
+          if-no-files-found: error
+
       - name: Upload installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-installer
           path: |
@@ -96,7 +107,7 @@ jobs:
 
       - name: Upload Microsoft Store package
         if: vars.STORE_PACKAGE_NAME != '' && vars.STORE_PUBLISHER != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: microsoft-store-msix
           path: dist/store/*.msix
@@ -104,7 +115,7 @@ jobs:
 
       - name: Upload Microsoft Store preview package
         if: vars.STORE_PACKAGE_NAME == '' || vars.STORE_PUBLISHER == ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: microsoft-store-msix-preview
           path: dist/store/*.msix
@@ -122,7 +133,7 @@ jobs:
     environment:
       name: ${{ 'nvrbeats-signing' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -206,6 +217,10 @@ jobs:
           description: NVRBEATS Windows application
           description-url: https://github.com/sar365/NVRBEATS
 
+      - name: Package portable ZIP
+        shell: pwsh
+        run: ./scripts/package-portable.ps1
+
       # --no-binary-patching preserves the app's signature after Tauri packages it.
       - name: Build MSI and NSIS installers
         run: bunx tauri bundle --no-binary-patching
@@ -230,7 +245,7 @@ jobs:
         run: bun scripts/verify-windows-installers.mjs
 
       - name: Set up Microsoft WinApp CLI
-        uses: microsoft/setup-WinAppCli@v0.1
+        uses: microsoft/setup-WinAppCli@v0.3
 
       - name: Package Microsoft Store MSIX
         shell: pwsh
@@ -244,8 +259,15 @@ jobs:
         shell: pwsh
         run: Write-Host 'This is a preview MSIX, not ready for Store submission. Reserve the app name in Partner Center, then set STORE_PACKAGE_NAME and STORE_PUBLISHER repository variables. See docs/MICROSOFT-STORE.md.'
 
+      - name: Upload portable ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-portable
+          path: dist/portable/*.zip
+          if-no-files-found: error
+
       - name: Upload installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-installer
           path: |
@@ -255,7 +277,7 @@ jobs:
 
       - name: Upload Microsoft Store package
         if: vars.STORE_PACKAGE_NAME != '' && vars.STORE_PUBLISHER != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: microsoft-store-msix
           path: dist/store/*.msix
@@ -263,7 +285,7 @@ jobs:
 
       - name: Upload Microsoft Store preview package
         if: vars.STORE_PACKAGE_NAME == '' || vars.STORE_PUBLISHER == ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: microsoft-store-msix-preview
           path: dist/store/*.msix
@@ -276,13 +298,19 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download installer
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows-installer
           path: installers
+
+      - name: Download portable ZIP
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-portable
+          path: portable
 
       - name: Compute release version
         id: version
@@ -297,14 +325,16 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: NVRBEATS ${{ steps.version.outputs.tag }}
           body: |
-            Windows installer for NVRBEATS (build ${{ github.run_number }}).
-            Download the signed .msi or .exe below and run it to install.
+            Windows release for NVRBEATS (build ${{ github.run_number }}).
+            For the no-installer portable version, download and extract the `NVRBEATS-portable-*.zip`, then run `NVRBEATS.exe`.
+            The portable package requires the Microsoft Edge WebView2 Runtime. The .msi and NSIS .exe are installers.
           files: |
             installers/msi/*.msi
             installers/nsis/*.exe
+            portable/*.zip
           fail_on_unmatched_files: true

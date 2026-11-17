@@ -10,16 +10,26 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url)).replace(/\\/g, "/");
 const routesDir = `${rootDir.replace(/\/$/, "")}/src/routes`;
+const nitroConfig = {
+  preset: "cloudflare-module",
+  // The Cloudflare worker preset sets inlineDynamicImports, which Rolldown ignores
+  // when codeSplitting is active. Null clears that obsolete output option.
+  inlineDynamicImports: null,
+};
 
 export default defineConfig({
   // MCP serves the hosted app only. Its path containment check in v2.0.4
   // rejects Windows separators; desktop packaging needs no MCP HTTP routes.
-  plugins: process.env["DESKTOP_BUILD"] === "1" ? [] : [
-    mcpPlugin({
-      routesDir,
-    }),
-  ],
+  plugins:
+    process.env["DESKTOP_BUILD"] === "1"
+      ? []
+      : [
+          mcpPlugin({
+            routesDir,
+          }),
+        ],
   tanstackStart: {
     server: { entry: "server" },
   },
+  nitro: nitroConfig,
 });

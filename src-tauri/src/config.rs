@@ -354,6 +354,13 @@ impl AppConfig {
 }
 
 fn default_recording_folder() -> String {
+    if let Some(portable_data) = portable_data_dir() {
+        return portable_data
+            .join("Recordings")
+            .to_string_lossy()
+            .into_owned();
+    }
+
     if let Ok(profile) = std::env::var("USERPROFILE") {
         return format!("{profile}\\Music\\DJ Set Recorder");
     }
@@ -363,7 +370,23 @@ fn default_recording_folder() -> String {
     "Recordings".into()
 }
 
+/// Return the portable data directory when launched from a portable package.
+/// The marker lives beside the executable; installed builds keep using the
+/// normal per-user Windows configuration directory.
+pub fn portable_data_dir() -> Option<PathBuf> {
+    let executable = std::env::current_exe().ok()?;
+    let directory = executable.parent()?;
+    directory
+        .join("nvrbeats.portable")
+        .is_file()
+        .then(|| directory.join("portable-data"))
+}
+
 pub fn default_config_path() -> PathBuf {
+    if let Some(portable_data) = portable_data_dir() {
+        return portable_data.join("config.json");
+    }
+
     #[cfg(windows)]
     {
         if let Ok(local) = std::env::var("LOCALAPPDATA") {

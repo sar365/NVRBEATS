@@ -123,6 +123,18 @@ pub fn run() {
     }
     let settings = startup_config.to_recording_settings();
 
+    let mut context = tauri::generate_context!();
+    if let Some(portable_data_dir) = config::portable_data_dir() {
+        if let Err(error) = std::fs::create_dir_all(&portable_data_dir) {
+            log::error!("Could not create portable data directory: {error}");
+        }
+        context.config_mut().app.app_directories_override = Some(
+            tauri::utils::config::AppDirectoriesOverride::Root(
+                portable_data_dir.clone(),
+            ),
+        );
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -190,6 +202,6 @@ pub fn run() {
             commands::minimize_window,
             commands::restore_window,
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("failed to start NVRBEATS");
 }
