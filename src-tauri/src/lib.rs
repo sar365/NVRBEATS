@@ -123,16 +123,12 @@ pub fn run() {
     }
     let settings = startup_config.to_recording_settings();
 
+    let portable_data_dir = config::portable_data_dir();
     let mut context = tauri::generate_context!();
-    if let Some(portable_data_dir) = config::portable_data_dir() {
-        if let Err(error) = std::fs::create_dir_all(&portable_data_dir) {
-            log::error!("Could not create portable data directory: {error}");
+    if portable_data_dir.is_some() {
+        if let Some(window) = context.config_mut().app.windows.first_mut() {
+            window.create = false;
         }
-        context.config_mut().app.app_directories_override = Some(
-            tauri::utils::config::AppDirectoriesOverride::Root(
-                portable_data_dir.clone(),
-            ),
-        );
     }
 
     tauri::Builder::default()
@@ -142,6 +138,21 @@ pub fn run() {
         .manage(LastSettings(Mutex::new(settings.clone())))
         .manage(config_store)
         .setup(move |app| {
+            if let Some(portable_data_dir) = &portable_data_dir {
+                std::fs::create_dir_all(portable_data_dir)?;
+                let webview_data_dir = portable_data_dir.join("webview");
+                std::fs::create_dir_all(&webview_data_dir)?;
+                let window_config = app
+                    .config()
+                    .app
+                    .windows
+                    .first()
+                    .ok_or("NVRBEATS requires a configured main window")?;
+                tauri::WebviewWindowBuilder::from_config(app, window_config)?
+                    .data_directory(webview_data_dir)
+                    .build()?;
+            }
+
             tray::build(app.handle())?;
 
             if let Err(error) = engine.apply_capture_settings(&settings) {
