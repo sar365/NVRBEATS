@@ -80,4 +80,4 @@ Write-Host ""
 Write-Host "Done! Your installer is in:" -ForegroundColor Green
 Write-Host "  $bundle"
 if (Test-Path $bundle) { Start-Process explorer.exe $bundle }
-Write-Host "Run the installer, then set Traktor's output to the Windows default device (WASAPI/DirectSound, not ASIO)."
+Write-Host "Run the app and route audio through the Windows default output in shared mode (WASAPI/DirectSound, not exclusive mode)."

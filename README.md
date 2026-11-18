@@ -1,8 +1,8 @@
 # NVRBEATS
 
-A lightweight Windows desktop recorder for Traktor Pro 4.
+A lightweight Windows desktop recorder for system audio.
 
-NVRBEATS is designed for users running Native Instruments Traktor Pro 4 and listening through their computer's normal Windows audio output.
+NVRBEATS records the shared audio mix sent to the Windows default output, regardless of which application is producing the sound.
 
 CRITICAL: DO NOT BUILD THIS AS A PURE WEB AUDIO RECORDER
 
@@ -10,7 +10,7 @@ The defining technical requirement is capturing the Windows PC Default Audio Out
 
 The intended audio path is:
 
-Traktor Pro 4 → Windows Audio → PC Default Output → WASAPI Loopback → Local Recorder → WAV
+Any app → Windows Audio → PC Default Output → WASAPI Loopback → Local Recorder → WAV
 
 Do not use:
 
@@ -48,9 +48,7 @@ Press RECORD.
 
 Minimize the application.
 
-DJ normally in Traktor Pro 4.
-
-Traktor continues sending audio to the Windows default speakers/headphones.
+Use any audio application normally, with its output routed through the Windows default speakers/headphones.
 
 The native Windows recording component captures that digital output using WASAPI loopback.
 
@@ -348,7 +346,7 @@ Do not implement browser-side WAV encoding.
 
 11. LOW-CPU DESIGN
 
-The application must be designed around extremely low CPU usage while Traktor is running.
+The application must be designed around extremely low CPU usage while audio is playing.
 
 The frontend must not:
 
@@ -388,7 +386,7 @@ The recording continues when:
 
 application is minimized
 
-Traktor is focused
+a source audio application is active
 
 another application is focused
 
@@ -857,7 +855,7 @@ settings
 
 error states
 
-It must never imply that real Traktor audio is being captured.
+It must never imply that live system audio is being captured.
 
 When the native Windows application is connected, replace the mock adapter with the real adapter.
 
@@ -927,27 +925,9 @@ native playback
 
 Do not attempt to implement those features as fake browser functionality.
 
-29. TRAKTOR COMPATIBILITY
+29. APPLICATION COMPATIBILITY
 
-The application should NOT attempt to control Traktor.
-
-Do not interact with:
-
-Traktor decks
-
-Traktor mixer
-
-Traktor effects
-
-Traktor volume
-
-Traktor playback
-
-Traktor configuration
-
-The recorder is completely independent.
-
-It simply records what Windows is sending to the default playback device.
+The recorder must not control or automate source applications. It is independent of their controls and records the shared audio mix Windows sends to the default playback device.
 
 30. AI FEATURES
 
@@ -1069,7 +1049,7 @@ local file handling
 
 Phase 5 — Testing
 
-Test the native Windows implementation with actual Traktor Pro 4.
+Test the native Windows implementation with live audio from a source application.
 
 33. DO NOT WASTE CREDITS
 
@@ -1101,7 +1081,7 @@ If a feature requires native Windows access, create the correct interface and cl
 
 The finished application should ultimately look like:
 
-              TRAKTOR PRO 4
+              AUDIO SOURCE
                      │
                      ▼
           WINDOWS AUDIO ENGINE
@@ -1138,7 +1118,7 @@ Display it in the application.
 
 Start native WASAPI loopback capture.
 
-Record Traktor Pro 4's audio.
+Record audio routed through the Windows default output.
 
 Continue recording while minimized.
 
@@ -1158,7 +1138,7 @@ The browser preview does NOT need to perform real WASAPI recording.
 
 It only needs to demonstrate the UI and native-bridge architecture.
 
-Do not claim the application is production-ready until the native Windows WASAPI component has been tested against actual Traktor Pro 4 audio.
+Do not claim the application is production-ready until the native Windows WASAPI component has been tested against actual audio from the Windows default output.
 
 Start by building the UI, state machine, local-first data model, and NativeAudioBridge interface only. Keep the native Windows/WASAPI boundary explicit so that no Lovable credits are wasted trying to implement functionality that requires a native Windows environment.
 

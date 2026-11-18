@@ -9,13 +9,13 @@ const projectRef = import.meta.env["VITE_SUPABASE_PROJECT_ID"] ?? "project-ref-u
 
 export default defineMcp({
   name: "traktor-companion",
-  title: "Traktor Companion",
+  title: "Windows Audio Companion",
   version: "0.1.0",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
   }),
   instructions:
-    "Tools for NVRBEATS, a Windows app that records Traktor Pro 4 sets through WASAPI loopback. Use `get_capture_setup` for setup steps, `get_recorder_capabilities` for what the app supports, and `troubleshoot_recording` for common problems. These tools return general product guidance only; recordings and library data stay on the user's own machine.",
+    "Tools for NVRBEATS, a Windows app that records system audio from any app routed through the Windows default output using WASAPI loopback. Use `get_capture_setup` for setup steps, `get_recorder_capabilities` for what the app supports, and `troubleshoot_recording` for common problems. These tools return general product guidance only; recordings and library data stay on the user's own machine.",
   tools: [captureSetupTool, capabilitiesTool, troubleshootTool],
 });

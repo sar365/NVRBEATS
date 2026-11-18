@@ -1,4 +1,4 @@
-//! System tray: start/stop a recording and reopen the window while Traktor plays.
+//! System tray: start/stop a recording and reopen the window while system audio plays.
 
 use crate::capture::Engine;
 use crate::state::{RecorderError, RecorderState, RecordingSettings};

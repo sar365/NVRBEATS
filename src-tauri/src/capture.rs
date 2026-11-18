@@ -1,6 +1,6 @@
 //! WASAPI loopback capture engine.
 //!
-//! Path: Traktor Pro 4 -> Windows Audio -> selected render endpoint (or default)
+//! Path: Any app -> Windows shared audio engine -> selected render endpoint (or default)
 //!       -> WASAPI loopback
 //!       -> bounded queue -> writer thread -> WAV on local disk.
 //!
@@ -300,8 +300,7 @@ pub fn spawn_capture_thread(engine: Arc<Engine>) {
                 }
                 *engine.current_device_id.lock() = None;
             }
-            // The default output device may have changed (Traktor switching
-            // ASIO/WASAPI, headphones plugged in). Retry shortly.
+            // The output device may have changed or been disconnected. Retry shortly.
             std::thread::sleep(std::time::Duration::from_millis(750));
         })
         .ok();
@@ -317,7 +316,7 @@ fn run_loopback(engine: &Arc<Engine>) -> Result<(), String> {
     let device = if let Some(id) = requested_id.as_deref() {
         crate::devices::output_device_by_id(id)?
     } else {
-        get_default_device(&Direction::Render).map_err(|e| e.to_string())?
+        crate::devices::default_render_device()?
     };
     let actual_id = device.get_id().map_err(|e| e.to_string())?;
     let mut audio_client = device.get_iaudioclient().map_err(|e| e.to_string())?;

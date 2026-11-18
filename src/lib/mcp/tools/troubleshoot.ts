@@ -3,9 +3,9 @@ import { z } from "zod";
 
 const ANSWERS: Record<string, string> = {
   silence:
-    "A silent recording almost always means Traktor is not going through the Windows mixer. Switch Traktor's audio device away from exclusive-mode ASIO to the Windows default output (WASAPI/DirectSound shared). Then check that the input meter moves before you press Record.",
+    "A silent recording usually means the source app is not feeding the Windows shared audio mix. Set that app to the Windows default playback device and use shared mode (WASAPI/DirectSound); exclusive or direct-driver modes such as ASIO bypass loopback. Check that the input meter moves before recording.",
   no_meters:
-    "If the meters never move: confirm Windows is actually playing through the device set as Default Device, and that the recorder was started after Traktor. Changing the Windows default output while recording can also stop the tap — check the device panel on the dashboard.",
+    "If the meters never move, confirm audio is playing through the Windows Default Device selected in the dashboard. Check the source app is not using a different endpoint or exclusive mode. Changing the Windows default output while recording may require restarting the capture.",
   crackles:
     "Dropouts usually come from a too-small buffer or a busy disk. Raise the buffer in Settings > Advanced, record to a local drive rather than a network or USB drive, and keep a few GB of free space.",
   device_changed:

@@ -80,9 +80,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "NVRBEATS" },
-      { name: "description", content: "Local Windows recording for your Traktor DJ sets." },
+      {
+        name: "description",
+        content: "Local Windows system-audio recording from the default playback device.",
+      },
       { property: "og:title", content: "NVRBEATS" },
-      { property: "og:description", content: "Local Windows recording for your Traktor DJ sets." },
+      {
+        property: "og:description",
+        content: "Local Windows system-audio recording from the default playback device.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

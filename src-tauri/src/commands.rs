@@ -248,10 +248,9 @@ pub fn check_loopback_access(
     #[cfg(windows)]
     {
         use wasapi::*;
-        let _ = initialize_mta();
         let device = match device_id.as_deref() {
             Some(id) => devices::output_device_by_id(id)?,
-            None => get_default_device(&Direction::Render).map_err(|e| e.to_string())?,
+            None => devices::default_render_device()?,
         };
         let mut client = device.get_iaudioclient().map_err(|e| e.to_string())?;
         let format = WaveFormat::new(32, 32, &SampleType::Float, sample_rate as usize, 2, None);

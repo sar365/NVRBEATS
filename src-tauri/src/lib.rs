@@ -1,6 +1,6 @@
 //! NVRBEATS — native Windows engine.
 //!
-//! Capture path: Traktor Pro 4 -> Windows Audio -> selected render endpoint
+//! Capture path: Windows system audio -> selected render endpoint
 //!               -> WASAPI loopback -> local recorder -> WAV on disk.
 //! No Web Audio, no microphone, no cloud.
 

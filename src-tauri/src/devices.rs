@@ -22,10 +22,20 @@ fn find_endpoint_index_by_id(
 }
 
 #[cfg(windows)]
-pub fn default_output_device() -> Option<OutputDevice> {
+/// Resolve the endpoint used for normal media playback. WASAPI's generic
+/// `get_default_device` selects the Console role, which can differ from the
+/// Multimedia endpoint used by music and video applications.
+pub fn default_render_device() -> Result<wasapi::Device, String> {
     use wasapi::*;
     let _ = initialize_mta();
-    let device = get_default_device(&Direction::Render).ok()?;
+    get_default_device_for_role(&Direction::Render, &Role::Multimedia)
+        .or_else(|_| get_default_device_for_role(&Direction::Render, &Role::Console))
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(windows)]
+pub fn default_output_device() -> Option<OutputDevice> {
+    let device = default_render_device().ok()?;
     let name = device
         .get_friendlyname()
         .unwrap_or_else(|_| "Default Output".into());

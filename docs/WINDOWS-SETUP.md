@@ -1,7 +1,7 @@
-# Windows Build & Real Traktor Test Walkthrough
+# Windows Build & System-Audio Test Walkthrough
 
-This guide takes you from a fresh Windows PC to recording a real Traktor Pro 4 set
-with the native desktop app. Everything happens on your PC — the browser preview
+This guide takes you from a fresh Windows PC to recording audio from any application
+that plays through the Windows default output using the native desktop app. Everything happens on your PC — the browser preview
 cannot record audio.
 
 ---
@@ -73,7 +73,7 @@ bun run desktop:dev
 ```
 
 The desktop window opens showing the dashboard. This is the fastest way to test
-against Traktor — do your first real recording here.
+against any app — play audio in a browser, media player, or other source for the first recording.
 
 ### Build the installer
 
@@ -104,23 +104,24 @@ normal Windows program.
 
 ---
 
-## Part 3 — Traktor configuration (critical)
+## Part 3 — Windows audio routing (critical)
 
-The recorder captures whatever Windows sends to the **default playback device**.
-Traktor must use that same path.
+The recorder captures the shared audio mix sent to the **Windows default playback
+device**. It is not limited to a particular application: browsers, media players,
+games, meeting apps, or DJ software can be captured when routed through that endpoint.
 
-1. In **Traktor Pro 4**: Preferences → **Audio Setup** → set **Audio Device** to
-   your normal output using **WASAPI (shared)** or **DirectSound**.
-2. **Do not use exclusive-mode ASIO.** ASIO bypasses the Windows audio engine,
-   so there is nothing for the loopback to capture — the meters stay flat and the
-   recording is silent.
-3. In **Windows Settings → System → Sound**, confirm the same device is the
-   default output.
+1. In **Windows Settings → System → Sound**, set the speakers, headphones, or
+   interface you actually listen through as the **Default output device**.
+2. In the source app's audio settings, choose **System Default** or that same output
+   using shared-mode **WASAPI** or **DirectSound**.
+3. Avoid **exclusive-mode WASAPI**, ASIO, or another direct-driver path for the
+   source: those modes can bypass the Windows shared mixer and cannot be captured
+   by endpoint loopback. Switch that app to shared/system output if needed.
 
-**Sanity check before recording:** play a track in Traktor. The app's input meter
-should move immediately — before you press Record. If it moves, the audio path is
-correct.
-
+**Sanity check before recording:** play audio in any source app. NVRBEATS' input
+meter should move before you press Record. If the meter stays flat, check that the
+app is using the default output shown in NVRBEATS and that Windows volume is not
+muted. The recorder cannot capture sound routed to a different endpoint.
 ---
 
 ## Part 4 — Record a real set (test checklist)
@@ -144,9 +145,9 @@ correct.
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| Meters flat while Traktor plays | Exclusive ASIO in Traktor, or wrong Windows default device | Redo Part 3 |
+| Meters flat while audio plays | Source app uses another output or exclusive/direct-driver mode; wrong Windows default device | Redo Part 3 |
 | "Device disconnected" error | Default output changed (headphones unplugged, etc.) | Set the default device in Windows Sound settings; the app follows it |
-| Recording is silent but meters moved | Traktor master volume routed elsewhere | Check Traktor's output routing to the main output |
+| Recording is silent but meters moved | The source app may be routing to another endpoint or muted bus | Check that app's output routing and master volume |
 | Where are my files? | Default location is `Music\DJ Sets` | Settings page shows the recording folder; "Open folder" jumps to it |
 
 If anything else goes wrong, copy the exact error message (or a screenshot) and

@@ -28,7 +28,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Record your Traktor Pro 4 sets straight from the Windows default output using WASAPI loopback. No microphone, no cables, no cloud.",
+          "Record system audio from any app routed through the Windows default output using WASAPI loopback. No microphone, no cables, no cloud.",
       },
       { property: "og:title", content: "NVRBEATS — Record What You Hear" },
       {
@@ -362,7 +362,7 @@ function RecorderPage() {
             {displayedDevice?.name ?? "No playback device detected"}
           </p>
           <p className="mt-3 max-w-2xl text-xs text-muted-foreground">
-            Traktor Pro 4 → Windows Audio →{" "}
+            Any app → Windows Audio →{" "}
             {settings.followWindowsDefault ? "PC Default Output" : "Selected Playback Device"} →
             WASAPI Loopback → Local Recorder → WAV. Nothing is uploaded, and no microphone is used.
           </p>

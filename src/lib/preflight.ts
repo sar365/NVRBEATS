@@ -79,7 +79,7 @@ export async function runPreflight(
         id: "wasapi",
         label: "WASAPI loopback access",
         status: "fail",
-        detail: `Could not open loopback: ${String(e)}. Close apps using the output in exclusive mode (e.g. Traktor on ASIO) and try again.`,
+        detail: `Could not open loopback: ${String(e)}. Close apps holding the output in exclusive mode and use the Windows default output in shared mode (WASAPI or DirectSound).`,
       });
     }
   }
