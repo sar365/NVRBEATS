@@ -3,7 +3,7 @@
 //! The native process owns this file so tray-started recordings and UI-started
 //! recordings share the same settings. No network access is required.
 
-use crate::state::{AdvancedSettings, AutoRecordSettings, RecordingSettings};
+use crate::state::{AdvancedSettings, AutoRecordSettings, CaptureBackend, RecordingSettings};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
@@ -51,6 +51,12 @@ pub struct ProfileConfig {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureConfig {
+    #[serde(default)]
+    pub backend: CaptureBackend,
+    #[serde(default)]
+    pub asio_driver_name: Option<String>,
+    #[serde(default = "default_asio_channel_pair")]
+    pub asio_channel_pair: [u16; 2],
     pub device_policy: DevicePolicy,
     pub device_id: Option<String>,
     pub container: AudioContainer,
@@ -61,6 +67,10 @@ pub struct CaptureConfig {
     /// this before the UI may describe it as an effective runtime buffer.
     pub buffer_ms: u32,
     pub on_device_change: DeviceChangePolicy,
+}
+
+fn default_asio_channel_pair() -> [u16; 2] {
+    [0, 1]
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -128,6 +138,9 @@ impl Default for AppConfig {
                 name: "Default".into(),
             },
             capture: CaptureConfig {
+                backend: CaptureBackend::WasapiLoopback,
+                asio_driver_name: None,
+                asio_channel_pair: default_asio_channel_pair(),
                 device_policy: DevicePolicy::FollowWindowsDefault,
                 device_id: None,
                 container: AudioContainer::Wav,
@@ -204,22 +217,40 @@ impl AppConfig {
         if !(20..=1000).contains(&self.capture.buffer_ms) {
             return Err("Buffer preference must be between 20 and 1000 ms.".into());
         }
-        match &self.capture.device_policy {
-            DevicePolicy::SpecificDevice => {
-                if self
-                    .capture
-                    .device_id
-                    .as_deref()
-                    .unwrap_or_default()
-                    .trim()
-                    .is_empty()
-                {
-                    return Err(
-                        "A device id is required when specific-device policy is selected.".into(),
-                    );
+        if self.capture.backend == CaptureBackend::WasapiLoopback {
+            match &self.capture.device_policy {
+                DevicePolicy::SpecificDevice => {
+                    if self
+                        .capture
+                        .device_id
+                        .as_deref()
+                        .unwrap_or_default()
+                        .trim()
+                        .is_empty()
+                    {
+                        return Err(
+                            "A device id is required when specific-device policy is selected."
+                                .into(),
+                        );
+                    }
                 }
+                DevicePolicy::FollowWindowsDefault => {}
             }
-            DevicePolicy::FollowWindowsDefault => {}
+        }
+        if self.capture.backend == CaptureBackend::AsioLoopback {
+            if self
+                .capture
+                .asio_driver_name
+                .as_deref()
+                .unwrap_or_default()
+                .trim()
+                .is_empty()
+            {
+                return Err("Select an ASIO driver before using ASIO playback loopback.".into());
+            }
+            if self.capture.asio_channel_pair[0] == self.capture.asio_channel_pair[1] {
+                return Err("Select two different ASIO loopback input channels.".into());
+            }
         }
         if self.recording.folder.trim().is_empty() || self.recording.folder.contains('\0') {
             return Err("Recording folder must not be empty or contain a NUL character.".into());
@@ -262,6 +293,9 @@ impl AppConfig {
     pub fn to_recording_settings(&self) -> RecordingSettings {
         RecordingSettings {
             format: "WAV".into(),
+            capture_backend: self.capture.backend.clone(),
+            asio_driver_name: self.capture.asio_driver_name.clone(),
+            asio_channel_pair: self.capture.asio_channel_pair,
             sample_rate: self.capture.sample_rate_hz,
             bit_depth: self.capture.bit_depth,
             folder: self.recording.folder.clone(),
@@ -302,7 +336,8 @@ impl AppConfig {
                     .into(),
             );
         }
-        if !settings.follow_windows_default
+        if settings.capture_backend == CaptureBackend::WasapiLoopback
+            && !settings.follow_windows_default
             && settings
                 .output_device_id
                 .as_deref()
@@ -315,6 +350,9 @@ impl AppConfig {
             );
         }
         self.capture.sample_rate_hz = settings.sample_rate;
+        self.capture.backend = settings.capture_backend.clone();
+        self.capture.asio_driver_name = settings.asio_driver_name.clone();
+        self.capture.asio_channel_pair = settings.asio_channel_pair;
         self.capture.bit_depth = settings.bit_depth;
         self.capture.device_policy = if settings.follow_windows_default {
             DevicePolicy::FollowWindowsDefault
@@ -607,6 +645,25 @@ mod tests {
         assert_eq!(config.capture.channels, 2);
         assert_eq!(config.capture.container, AudioContainer::Wav);
         assert_eq!(config.capture.sample_rate_hz, 48_000);
+    }
+
+    #[test]
+    fn asio_backend_round_trips_without_a_wasapi_endpoint() {
+        let mut config = AppConfig::default();
+        config.capture.backend = CaptureBackend::AsioLoopback;
+        config.capture.asio_driver_name = Some("Example ASIO Driver".into());
+        config.capture.asio_channel_pair = [2, 3];
+        config.capture.device_policy = DevicePolicy::SpecificDevice;
+        config.capture.device_id = None;
+
+        assert!(config.validate().is_ok());
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["capture"]["backend"], "asio_loopback");
+        let loaded: AppConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(loaded, config);
+        let settings = loaded.to_recording_settings();
+        assert_eq!(settings.capture_backend, CaptureBackend::AsioLoopback);
+        assert_eq!(settings.asio_channel_pair, [2, 3]);
     }
 
     #[test]

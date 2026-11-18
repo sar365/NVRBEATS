@@ -20,9 +20,16 @@ pub fn get_default_output_device() -> Option<OutputDevice> {
 pub fn get_output_devices() -> Vec<OutputDevice> {
     devices::output_devices()
 }
+#[tauri::command]
+pub fn get_asio_capture_devices() -> Result<Vec<AsioCaptureDevice>, String> {
+    devices::asio_capture_devices()
+}
 
 #[tauri::command]
 pub fn get_current_output_device(engine: State<'_, Shared>) -> Option<OutputDevice> {
+    if *engine.capture_backend.lock() == CaptureBackend::AsioLoopback {
+        return None;
+    }
     engine
         .current_device_id
         .lock()
@@ -47,7 +54,9 @@ pub fn start_recording(
     } else {
         settings.output_device_id.clone()
     };
-    check_loopback_access(settings.sample_rate, device_id)?;
+    if settings.capture_backend == CaptureBackend::WasapiLoopback {
+        check_loopback_access(settings.sample_rate, device_id)?;
+    }
     let folder = PathBuf::from(&settings.folder);
     let filename = render_filename(&settings);
     let target = folder.join(filename);

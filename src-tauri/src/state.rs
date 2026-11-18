@@ -29,6 +29,27 @@ pub struct OutputDevice {
     pub status: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CaptureBackend {
+    WasapiLoopback,
+    AsioLoopback,
+}
+
+impl Default for CaptureBackend {
+    fn default() -> Self {
+        Self::WasapiLoopback
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AsioCaptureDevice {
+    pub driver_name: String,
+    pub input_channels: u16,
+    pub output_channels: u16,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RecorderError {
     pub code: String,
@@ -74,7 +95,7 @@ pub struct RecordingStatus {
 pub struct AudioLevels {
     pub left: f32,
     pub right: f32,
-    /// Always false in the native build: these are real peaks from WASAPI.
+    /// Always false in the native build: peaks come from the selected native capture stream.
     pub mock: bool,
 }
 
@@ -121,6 +142,12 @@ pub struct RecordingSettings {
     pub follow_windows_default: bool,
     #[serde(rename = "outputDeviceId", default)]
     pub output_device_id: Option<String>,
+    #[serde(rename = "captureBackend", default)]
+    pub capture_backend: CaptureBackend,
+    #[serde(rename = "asioDriverName", default)]
+    pub asio_driver_name: Option<String>,
+    #[serde(rename = "asioChannelPair", default = "default_asio_channel_pair")]
+    pub asio_channel_pair: [u16; 2],
     #[serde(rename = "deviceChangeBehavior")]
     pub device_change_behavior: String,
     #[serde(rename = "autoRecord")]
@@ -131,6 +158,10 @@ pub struct RecordingSettings {
     #[serde(rename = "startWithWindows")]
     pub start_with_windows: bool,
     pub advanced: AdvancedSettings,
+}
+
+fn default_asio_channel_pair() -> [u16; 2] {
+    [0, 1]
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

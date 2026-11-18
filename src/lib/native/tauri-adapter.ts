@@ -29,6 +29,7 @@
 import type { NativeAudioBridge } from "./bridge";
 import type {
   AudioLevels,
+  AsioCaptureDevice,
   ConversionRequest,
   DiskSpace,
   ExportRequest,
@@ -59,6 +60,7 @@ export class TauriAudioBridge implements NativeAudioBridge {
 
   getDefaultOutputDevice = () => this.call<OutputDevice | null>("get_default_output_device");
   getOutputDevices = () => this.call<OutputDevice[]>("get_output_devices");
+  getAsioCaptureDevices = () => this.call<AsioCaptureDevice[]>("get_asio_capture_devices");
   getCurrentOutputDevice = () => this.call<OutputDevice | null>("get_current_output_device");
   getUnifiedConfig = () => this.call<UnifiedConfigResult>("get_unified_config");
   saveUnifiedConfig = (config: UnifiedAppConfig) =>

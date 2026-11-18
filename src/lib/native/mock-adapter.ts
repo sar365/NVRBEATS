@@ -57,6 +57,9 @@ class MockNativeAudioBridge implements NativeAudioBridge {
     capture: {
       devicePolicy: "follow_windows_default",
       deviceId: null,
+      backend: "wasapi_loopback",
+      asioDriverName: null,
+      asioChannelPair: [0, 1],
       container: "wav",
       sampleRateHz: 48000,
       bitDepth: 24,
@@ -85,6 +88,10 @@ class MockNativeAudioBridge implements NativeAudioBridge {
 
   async getOutputDevices() {
     return MOCK_DEVICES;
+  }
+
+  async getAsioCaptureDevices() {
+    return [];
   }
 
   async getCurrentOutputDevice() {

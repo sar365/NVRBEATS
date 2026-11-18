@@ -10,6 +10,9 @@ export const DEFAULT_SETTINGS: RecordingSettings = {
   filenameTemplate: "DJ Set - {date} - {time}",
   followWindowsDefault: true,
   outputDeviceId: null,
+  captureBackend: "wasapi_loopback",
+  asioDriverName: null,
+  asioChannelPair: [0, 1],
   deviceChangeBehavior: "CONTINUE",
   autoRecord: {
     enabled: false,
@@ -34,6 +37,10 @@ export function configToSettings(config: UnifiedAppConfig): RecordingSettings {
     format: "WAV",
     sampleRate: config.capture.sampleRateHz === 44100 ? 44100 : 48000,
     bitDepth: config.capture.bitDepth === 16 ? 16 : 24,
+    captureBackend:
+      config.capture.backend === "asio_loopback" ? "asio_loopback" : "wasapi_loopback",
+    asioDriverName: config.capture.asioDriverName,
+    asioChannelPair: config.capture.asioChannelPair ?? [0, 1],
     folder: config.recording.folder,
     filenameTemplate: config.recording.filenameTemplate,
     followWindowsDefault: config.capture.devicePolicy !== "specific_device",
@@ -70,6 +77,9 @@ export function settingsToConfig(
     ...base,
     capture: {
       ...base.capture,
+      backend: settings.captureBackend,
+      asioDriverName: settings.asioDriverName,
+      asioChannelPair: settings.asioChannelPair,
       devicePolicy: settings.followWindowsDefault ? "follow_windows_default" : "specific_device",
       deviceId: settings.followWindowsDefault ? null : settings.outputDeviceId,
       container: "wav",

@@ -20,6 +20,7 @@ export type RecorderState =
 export type AudioFormat = "WAV" | "FLAC" | "MP3" | "AAC";
 export type SampleRate = 44100 | 48000;
 export type BitDepth = 16 | 24;
+export type CaptureBackend = "wasapi_loopback" | "asio_loopback";
 
 export type DeviceConnection = "CONNECTED" | "DISCONNECTED";
 
@@ -28,6 +29,12 @@ export interface OutputDevice {
   name: string;
   isDefault: boolean;
   status: DeviceConnection;
+}
+
+export interface AsioCaptureDevice {
+  driverName: string;
+  inputChannels: number;
+  outputChannels: number;
 }
 
 export interface AudioLevels {
@@ -47,6 +54,10 @@ export interface RecordingSettings {
   filenameTemplate: string;
   followWindowsDefault: boolean;
   outputDeviceId: string | null;
+  captureBackend: CaptureBackend;
+  asioDriverName: string | null;
+  /** Zero-based ASIO input channel indices carrying the driver's stereo loopback mix. */
+  asioChannelPair: [number, number];
   deviceChangeBehavior: "CONTINUE" | "STOP" | "SWITCH";
   autoRecord: {
     enabled: boolean;
@@ -72,6 +83,9 @@ export interface UnifiedAppConfig {
   schemaVersion: number;
   profile: { id: string; name: string };
   capture: {
+    backend: "wasapi_loopback" | "asio_loopback";
+    asioDriverName: string | null;
+    asioChannelPair: [number, number];
     devicePolicy: "follow_windows_default" | "specific_device";
     deviceId: string | null;
     container: "wav";

@@ -2,15 +2,16 @@
 
 A lightweight Windows desktop recorder for system audio.
 
-NVRBEATS records the shared audio mix sent to the Windows default output, regardless of which application is producing the sound.
+NVRBEATS records Windows system playback locally. Its default source is the shared mix sent to the Windows output; an optional ASIO source can record a driver's playback mix only when that driver exposes loopback input channels.
 
 CRITICAL: DO NOT BUILD THIS AS A PURE WEB AUDIO RECORDER
 
-The defining technical requirement is capturing the Windows PC Default Audio Output digitally using Windows WASAPI loopback.
+The native Windows application supports WASAPI endpoint loopback and an optional ASIO playback-loopback source. ASIO is driver-dependent: it requires input channels that carry the playback mix, and some ASIO drivers cannot be opened while another application is using them.
 
 The intended audio path is:
 
-Any app → Windows Audio → PC Default Output → WASAPI Loopback → Local Recorder → WAV
+Any app → Windows shared output → WASAPI loopback → Local Recorder → WAV
+ASIO app → ASIO driver playback loopback inputs → Local Recorder → WAV (only when supported by the driver)
 
 Do not use:
 
@@ -50,7 +51,7 @@ Minimize the application.
 
 Use any audio application normally, with its output routed through the Windows default speakers/headphones.
 
-The native Windows recording component captures that digital output using WASAPI loopback.
+The native Windows recording component captures the selected WASAPI or ASIO loopback source.
 
 Recording continues in the background.
 

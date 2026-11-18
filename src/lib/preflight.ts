@@ -1,7 +1,7 @@
 /**
  * Preflight — checks run before a recording starts:
- *   1. Windows default audio output is present and connected
- *   2. WASAPI loopback can be opened on it (shared mode)
+ *   1. The selected capture source is configured
+ *   2. WASAPI loopback can be opened, or ASIO loopback channels are selected
  *   3. Enough free disk space in the recording folder
  */
 import type { NativeAudioBridge } from "@/lib/native/bridge";
@@ -10,7 +10,7 @@ import { formatBytes } from "@/lib/format";
 
 export type CheckStatus = "pass" | "warn" | "fail";
 export interface PreflightCheck {
-  id: "output" | "wasapi" | "disk";
+  id: "output" | "wasapi" | "asio" | "disk";
   label: string;
   status: CheckStatus;
   detail: string;
@@ -32,35 +32,63 @@ export async function runPreflight(
 ): Promise<PreflightReport> {
   const checks: PreflightCheck[] = [];
 
-  // 1. Output device
+  // 1. Output device (WASAPI) or ASIO driver selection.
   let deviceOk = false;
-  try {
-    const device = settings.followWindowsDefault
-      ? await bridge.getDefaultOutputDevice()
-      : ((await bridge.getOutputDevices()).find(
-          (candidate) => candidate.id === settings.outputDeviceId,
-        ) ?? null);
-    deviceOk = !!device && device.status === "CONNECTED";
+  if (settings.captureBackend === "asio_loopback") {
+    deviceOk = !!settings.asioDriverName;
     checks.push({
       id: "output",
-      label: settings.followWindowsDefault ? "Windows audio output" : "Selected audio output",
+      label: "ASIO driver selection",
       status: deviceOk ? "pass" : "fail",
-      detail: device
-        ? deviceOk
-          ? settings.followWindowsDefault
-            ? `${device.name} is the default output.`
-            : `${device.name} is selected and connected.`
-          : `${device.name} is disconnected. Reconnect it or select another output device.`
-        : settings.followWindowsDefault
-          ? "No default playback device found. Set one in Windows Sound settings."
-          : "The selected output device is unavailable. Choose another device or follow the Windows default.",
+      detail: deviceOk
+        ? `${settings.asioDriverName} selected. The driver must expose playback loopback inputs.`
+        : "Select an installed ASIO driver with playback loopback inputs in Settings.",
     });
-  } catch (e) {
-    checks.push({ id: "output", label: "Windows audio output", status: "fail", detail: String(e) });
-  }
+  } else
+    try {
+      const device = settings.followWindowsDefault
+        ? await bridge.getDefaultOutputDevice()
+        : ((await bridge.getOutputDevices()).find(
+            (candidate) => candidate.id === settings.outputDeviceId,
+          ) ?? null);
+      deviceOk = !!device && device.status === "CONNECTED";
+      checks.push({
+        id: "output",
+        label: settings.followWindowsDefault ? "Windows audio output" : "Selected audio output",
+        status: deviceOk ? "pass" : "fail",
+        detail: device
+          ? deviceOk
+            ? settings.followWindowsDefault
+              ? `${device.name} is the default output.`
+              : `${device.name} is selected and connected.`
+            : `${device.name} is disconnected. Reconnect it or select another output device.`
+          : settings.followWindowsDefault
+            ? "No default playback device found. Set one in Windows Sound settings."
+            : "The selected output device is unavailable. Choose another device or follow the Windows default.",
+      });
+    } catch (e) {
+      checks.push({
+        id: "output",
+        label: "Windows audio output",
+        status: "fail",
+        detail: String(e),
+      });
+    }
 
-  // 2. WASAPI loopback
-  if (!deviceOk) {
+  // 2. Selected capture route. Do not open a second ASIO instance for preflight:
+  // many drivers are single-client, and a probe could interrupt the live stream.
+  if (settings.captureBackend === "asio_loopback") {
+    const pairValid = settings.asioChannelPair[0] !== settings.asioChannelPair[1];
+    checks.push({
+      id: "asio",
+      label: "ASIO playback loopback",
+      status: deviceOk && pairValid ? "warn" : "fail",
+      detail:
+        deviceOk && pairValid
+          ? `Input channels ${settings.asioChannelPair[0] + 1}/${settings.asioChannelPair[1] + 1} selected. ASIO does not identify loopback channels; verify the live meter follows playback before relying on a recording.`
+          : "Select a driver and two different input channels.",
+    });
+  } else if (!deviceOk) {
     checks.push({
       id: "wasapi",
       label: "WASAPI loopback access",

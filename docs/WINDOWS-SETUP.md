@@ -100,13 +100,14 @@ normal Windows program.
 | WebView2 not found when launching | WebView2 runtime missing | Install Part 1.4 |
 | `bun: command not found` | PATH not refreshed | Close and reopen PowerShell |
 | Weird module errors after copying the project | Stale `node_modules` | Delete `node_modules`, run `bun install` again |
+| ASIO binding build error mentioning `clang` or `libclang` | LLVM/Clang is missing | Install LLVM for Windows and set `LIBCLANG_PATH` to its `bin` folder, then rebuild |
 | Rust compile error you don't recognize | — | Copy the full error text and paste it back to me |
 
 ---
 
 ## Part 3 — Windows audio routing (critical)
 
-The recorder captures the shared audio mix sent to the **Windows default playback
+The default source captures the shared audio mix sent to the **Windows default playback
 device**. It is not limited to a particular application: browsers, media players,
 games, meeting apps, or DJ software can be captured when routed through that endpoint.
 
@@ -114,9 +115,22 @@ games, meeting apps, or DJ software can be captured when routed through that end
    interface you actually listen through as the **Default output device**.
 2. In the source app's audio settings, choose **System Default** or that same output
    using shared-mode **WASAPI** or **DirectSound**.
-3. Avoid **exclusive-mode WASAPI**, ASIO, or another direct-driver path for the
-   source: those modes can bypass the Windows shared mixer and cannot be captured
-   by endpoint loopback. Switch that app to shared/system output if needed.
+3. If the source app uses shared-mode **WASAPI** or **DirectSound**, choose the
+   Windows output source in NVRBEATS. Exclusive-mode WASAPI and direct ASIO output
+   may bypass the Windows shared mixer, so Windows endpoint loopback will not see it.
+
+### Optional ASIO playback-loopback source
+
+Select **ASIO playback loopback inputs** in Settings, choose the installed ASIO
+driver, then choose the two input channels that the driver exposes as a loopback
+of its playback mix. NVRBEATS cannot create loopback channels or determine their
+meaning from the channel numbers. The driver or interface must provide and route
+them. Ordinary microphone/line inputs are not playback loopback. Some ASIO drivers
+allow only one application to use them at a time, which can prevent recording
+while the source app is playing through that driver.
+
+Before recording, play audio and verify the live input meter responds. If no
+loopback input is available, use the default WASAPI source instead.
 
 **Sanity check before recording:** play audio in any source app. NVRBEATS' input
 meter should move before you press Record. If the meter stays flat, check that the
@@ -145,7 +159,7 @@ muted. The recorder cannot capture sound routed to a different endpoint.
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| Meters flat while audio plays | Source app uses another output or exclusive/direct-driver mode; wrong Windows default device | Redo Part 3 |
+| Meters flat while audio plays | Wrong Windows output, wrong ASIO input pair, or the driver does not expose loopback | Check the selected source and channel routing; use WASAPI if needed |
 | "Device disconnected" error | Default output changed (headphones unplugged, etc.) | Set the default device in Windows Sound settings; the app follows it |
 | Recording is silent but meters moved | The source app may be routing to another endpoint or muted bus | Check that app's output routing and master volume |
 | Where are my files? | Default location is `Music\DJ Sets` | Settings page shows the recording folder; "Open folder" jumps to it |

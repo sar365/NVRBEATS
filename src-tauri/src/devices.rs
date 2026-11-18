@@ -1,6 +1,6 @@
 //! Windows default-output detection (IMMDeviceEnumerator via the wasapi crate).
 
-use crate::state::OutputDevice;
+use crate::state::{AsioCaptureDevice, OutputDevice};
 
 #[cfg(any(windows, test))]
 /// WASAPI endpoint IDs are opaque identifiers; names and partial matches are not safe substitutes.
@@ -127,6 +127,33 @@ pub fn output_devices() -> Vec<OutputDevice> {
     out
 }
 
+#[cfg(windows)]
+pub fn asio_capture_devices() -> Result<Vec<AsioCaptureDevice>, String> {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    let host = cpal::host_from_id(cpal::HostId::Asio).map_err(|e| e.to_string())?;
+    let devices = host.devices().map_err(|e| e.to_string())?;
+    let mut result = Vec::new();
+    for device in devices {
+        let driver_name = device.name().map_err(|e| e.to_string())?;
+        let input_channels = device
+            .default_input_config()
+            .map(|config| config.channels())
+            .unwrap_or(0);
+        let output_channels = device
+            .default_output_config()
+            .map(|config| config.channels())
+            .unwrap_or(0);
+        if input_channels > 0 {
+            result.push(AsioCaptureDevice {
+                driver_name,
+                input_channels,
+                output_channels,
+            });
+        }
+    }
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::find_endpoint_index_by_id;
@@ -171,4 +198,9 @@ pub fn output_device_by_id_snapshot(_id: &str) -> Result<OutputDevice, String> {
 #[cfg(not(windows))]
 pub fn output_devices() -> Vec<OutputDevice> {
     Vec::new()
+}
+
+#[cfg(not(windows))]
+pub fn asio_capture_devices() -> Result<Vec<AsioCaptureDevice>, String> {
+    Ok(Vec::new())
 }

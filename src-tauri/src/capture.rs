@@ -1,12 +1,11 @@
 //! WASAPI loopback capture engine.
 //!
-//! Path: Any app -> Windows shared audio engine -> selected render endpoint (or default)
-//!       -> WASAPI loopback
+//! Path: WASAPI shared-output loopback or a selected ASIO driver's loopback input pair
 //!       -> bounded queue -> writer thread -> WAV on local disk.
 //!
 //! Two threads:
-//!   * capture thread — owns the WASAPI client, always running so the input
-//!     meter is live before recording starts. Computes peak L/R and pushes
+//!   * capture thread — owns the active WASAPI/ASIO stream, always running so the
+//!     input meter is live before recording starts. Computes peak L/R and pushes
 //!     interleaved f32 frames to the writer when a recording is armed.
 //!   * writer thread — owns the `hound` WAV writer and writes to `<file>.part`,
 //!     renaming to the final name on a clean stop (crash recovery repairs any
@@ -43,8 +42,12 @@ pub struct Engine {
     pub sample_rate: Mutex<u32>,
     pub bit_depth: Mutex<u16>,
     pub capture_running: AtomicBool,
+    pub capture_ready: AtomicBool,
     pub capture_generation: std::sync::atomic::AtomicU64,
+    pub capture_backend: Mutex<CaptureBackend>,
     pub capture_device_id: Mutex<Option<String>>,
+    pub asio_driver_name: Mutex<Option<String>>,
+    pub asio_channel_pair: Mutex<[u16; 2]>,
     pub current_device_id: Mutex<Option<String>>,
     /// Set by the capture thread when a recording is armed.
     pub armed: Mutex<Option<SyncSender<WriterMsg>>>,
@@ -63,8 +66,12 @@ impl Engine {
             sample_rate: Mutex::new(48_000),
             bit_depth: Mutex::new(24),
             capture_running: AtomicBool::new(false),
+            capture_ready: AtomicBool::new(false),
             capture_generation: std::sync::atomic::AtomicU64::new(0),
+            capture_backend: Mutex::new(CaptureBackend::WasapiLoopback),
             capture_device_id: Mutex::new(None),
+            asio_driver_name: Mutex::new(None),
+            asio_channel_pair: Mutex::new([0, 1]),
             current_device_id: Mutex::new(None),
             armed: Mutex::new(None),
         })
@@ -80,6 +87,11 @@ impl Engine {
         validate_capture_settings(settings)?;
         *self.sample_rate.lock() = settings.sample_rate;
         *self.bit_depth.lock() = settings.bit_depth;
+        *self.capture_backend.lock() = settings.capture_backend.clone();
+        *self.asio_driver_name.lock() = settings.asio_driver_name.clone();
+        *self.asio_channel_pair.lock() = settings.asio_channel_pair;
+        self.capture_ready.store(false, Ordering::SeqCst);
+        *self.error.lock() = None;
         *self.capture_device_id.lock() = if settings.follow_windows_default {
             None
         } else {
@@ -94,16 +106,20 @@ impl Engine {
         let rate = *self.sample_rate.lock() as f64;
         let requested_device_id = self.capture_device_id.lock().clone();
         let current_device_id = self.current_device_id.lock().clone();
-        let device = current_device_id
-            .as_deref()
-            .and_then(|id| crate::devices::output_device_by_id_snapshot(id).ok())
-            .or_else(|| {
-                if requested_device_id.is_none() {
-                    crate::devices::default_output_device()
-                } else {
-                    None
-                }
-            });
+        let device = if *self.capture_backend.lock() == CaptureBackend::AsioLoopback {
+            None
+        } else {
+            current_device_id
+                .as_deref()
+                .and_then(|id| crate::devices::output_device_by_id_snapshot(id).ok())
+                .or_else(|| {
+                    if requested_device_id.is_none() {
+                        crate::devices::default_output_device()
+                    } else {
+                        None
+                    }
+                })
+        };
         RecordingStatus {
             state: *self.state.lock(),
             duration_sec: if rate > 0.0 {
@@ -138,6 +154,22 @@ impl Engine {
         self.meters.reset_output();
         *self.bit_depth.lock() = settings.bit_depth;
         self.apply_capture_settings(settings)?;
+        if settings.capture_backend == CaptureBackend::AsioLoopback {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            while !self.capture_ready.load(Ordering::SeqCst) {
+                if let Some(error) = self.error.lock().as_ref() {
+                    if let Some(detail) = error.detail.as_deref() {
+                        self.set_state(RecorderState::Error);
+                        return Err(format!("ASIO loopback is not ready: {detail}"));
+                    }
+                }
+                if std::time::Instant::now() >= deadline {
+                    self.set_state(RecorderState::Error);
+                    return Err("Timed out waiting for the ASIO loopback stream. Check the driver, channel pair, and whether another application is using the driver.".into());
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+        }
 
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -269,7 +301,8 @@ pub fn validate_capture_settings(settings: &RecordingSettings) -> Result<(), Str
     if !matches!(settings.bit_depth, 16 | 24) {
         return Err("Bit depth must be exactly 16 or 24".into());
     }
-    if !settings.follow_windows_default
+    if settings.capture_backend == CaptureBackend::WasapiLoopback
+        && !settings.follow_windows_default
         && settings
             .output_device_id
             .as_deref()
@@ -277,6 +310,20 @@ pub fn validate_capture_settings(settings: &RecordingSettings) -> Result<(), Str
             .is_empty()
     {
         return Err("Select an output device or enable followWindowsDefault".into());
+    }
+    if settings.capture_backend == CaptureBackend::AsioLoopback {
+        if settings
+            .asio_driver_name
+            .as_deref()
+            .unwrap_or_default()
+            .trim()
+            .is_empty()
+        {
+            return Err("Select an ASIO driver for playback loopback capture.".into());
+        }
+        if settings.asio_channel_pair[0] == settings.asio_channel_pair[1] {
+            return Err("Select two different ASIO loopback input channels.".into());
+        }
     }
     Ok(())
 }
@@ -287,9 +334,14 @@ pub fn spawn_capture_thread(engine: Arc<Engine>) {
         return;
     }
     std::thread::Builder::new()
-        .name("wasapi-loopback".into())
+        .name("audio-capture".into())
         .spawn(move || loop {
-            if let Err(err) = run_loopback(&engine) {
+            let result = match *engine.capture_backend.lock() {
+                CaptureBackend::WasapiLoopback => run_loopback(&engine),
+                CaptureBackend::AsioLoopback => run_asio_loopback(&engine),
+            };
+            if let Err(err) = result {
+                engine.capture_ready.store(false, Ordering::SeqCst);
                 *engine.error.lock() = Some(RecorderError {
                     code: "RECORDING_FAILED".into(),
                     message: "The Windows audio engine stopped capturing.".into(),
@@ -344,6 +396,7 @@ fn run_loopback(engine: &Arc<Engine>) -> Result<(), String> {
     let block_align = format.get_blockalign() as usize;
     let mut queue: std::collections::VecDeque<u8> = std::collections::VecDeque::new();
     audio_client.start_stream().map_err(|e| e.to_string())?;
+    engine.capture_ready.store(true, Ordering::SeqCst);
     *engine.current_device_id.lock() = Some(actual_id);
     *engine.error.lock() = None;
     if engine.active.lock().is_some() {
@@ -396,6 +449,185 @@ fn run_loopback(engine: &Arc<Engine>) -> Result<(), String> {
             *engine.current_device_id.lock() = None;
             return Ok(());
         }
+    }
+}
+
+#[cfg(windows)]
+fn run_asio_loopback(engine: &Arc<Engine>) -> Result<(), String> {
+    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+    use cpal::{BufferSize, SampleFormat, StreamConfig};
+
+    let generation = engine.capture_generation.load(Ordering::SeqCst);
+    let requested_driver =
+        engine.asio_driver_name.lock().clone().ok_or_else(|| {
+            "Select an ASIO driver before starting playback loopback.".to_string()
+        })?;
+    let channel_pair = *engine.asio_channel_pair.lock();
+    let host = cpal::host_from_id(cpal::HostId::Asio)
+        .map_err(|error| format!("Could not initialize the ASIO host: {error}"))?;
+    let mut selected_device = None;
+    for device in host
+        .devices()
+        .map_err(|error| format!("Could not enumerate ASIO drivers: {error}"))?
+    {
+        if device.name().ok().as_deref() == Some(requested_driver.as_str()) {
+            selected_device = Some(device);
+            break;
+        }
+    }
+    let device = selected_device.ok_or_else(|| {
+        format!("ASIO driver '{requested_driver}' is not available. Refresh the driver list and select it again.")
+    })?;
+    let supported = device.default_input_config().map_err(|error| {
+        format!("ASIO driver '{requested_driver}' does not expose usable input channels. Playback loopback requires driver-provided loopback inputs: {error}")
+    })?;
+    let input_channels = supported.channels();
+    if channel_pair
+        .iter()
+        .any(|channel| *channel >= input_channels)
+        || channel_pair[0] == channel_pair[1]
+    {
+        return Err(format!(
+            "ASIO driver '{requested_driver}' exposes {input_channels} input channel(s); choose two distinct loopback channels in that range."
+        ));
+    }
+    let sample_format = supported.sample_format();
+    let config = StreamConfig {
+        channels: input_channels,
+        sample_rate: cpal::SampleRate(*engine.sample_rate.lock()),
+        buffer_size: BufferSize::Default,
+    };
+    let engine_for_data = engine.clone();
+    let engine_for_error = engine.clone();
+    let channel_count = input_channels as usize;
+    let stream = match sample_format {
+        SampleFormat::F32 => device.build_input_stream::<f32, _, _>(
+            &config,
+            move |data, _| process_asio_samples(&engine_for_data, data, channel_count, channel_pair),
+            move |error| set_asio_stream_error(&engine_for_error, error.to_string()),
+            None,
+        ),
+        SampleFormat::I16 => device.build_input_stream::<i16, _, _>(
+            &config,
+            move |data, _| process_asio_samples(&engine_for_data, data, channel_count, channel_pair),
+            move |error| set_asio_stream_error(&engine_for_error, error.to_string()),
+            None,
+        ),
+        SampleFormat::I32 => device.build_input_stream::<i32, _, _>(
+            &config,
+            move |data, _| process_asio_samples(&engine_for_data, data, channel_count, channel_pair),
+            move |error| set_asio_stream_error(&engine_for_error, error.to_string()),
+            None,
+        ),
+        other => {
+            return Err(format!(
+                "ASIO driver '{requested_driver}' uses unsupported input sample format {other:?}."
+            ));
+        }
+    }
+    .map_err(|error| {
+        format!(
+            "Could not open ASIO playback-loopback inputs on '{requested_driver}'. Close other apps using the driver and confirm its loopback channels are enabled: {error}"
+        )
+    })?;
+    *engine.error.lock() = None;
+    stream
+        .play()
+        .map_err(|error| format!("Could not start ASIO loopback capture: {error}"))?;
+    if let Some(error) = engine.error.lock().as_ref() {
+        return Err(error
+            .detail
+            .clone()
+            .unwrap_or_else(|| error.message.clone()));
+    }
+    engine.capture_ready.store(true, Ordering::SeqCst);
+    *engine.current_device_id.lock() = None;
+    if engine.active.lock().is_some() {
+        engine.set_state(RecorderState::Recording);
+    }
+    while engine.capture_generation.load(Ordering::SeqCst) == generation {
+        if let Some(error) = engine.error.lock().as_ref() {
+            engine.capture_ready.store(false, Ordering::SeqCst);
+            return Err(error
+                .detail
+                .clone()
+                .unwrap_or_else(|| error.message.clone()));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    engine.capture_ready.store(false, Ordering::SeqCst);
+    drop(stream);
+    Ok(())
+}
+
+#[cfg(windows)]
+trait AsioSample: Copy {
+    fn to_f32(self) -> f32;
+}
+
+#[cfg(windows)]
+impl AsioSample for f32 {
+    fn to_f32(self) -> f32 {
+        self
+    }
+}
+
+#[cfg(windows)]
+impl AsioSample for i16 {
+    fn to_f32(self) -> f32 {
+        self as f32 / 32768.0
+    }
+}
+
+#[cfg(windows)]
+impl AsioSample for i32 {
+    fn to_f32(self) -> f32 {
+        self as f32 / 2_147_483_648.0
+    }
+}
+
+#[cfg(windows)]
+fn process_asio_samples<T: AsioSample>(
+    engine: &Arc<Engine>,
+    data: &[T],
+    input_channels: usize,
+    channel_pair: [u16; 2],
+) {
+    let left = channel_pair[0] as usize;
+    let right = channel_pair[1] as usize;
+    if input_channels == 0 || left >= input_channels || right >= input_channels {
+        return;
+    }
+    let frames = data.len() / input_channels;
+    if frames == 0 {
+        return;
+    }
+    let mut stereo = Vec::with_capacity(frames * 2);
+    for frame in data.chunks_exact(input_channels) {
+        stereo.push(frame[left].to_f32());
+        stereo.push(frame[right].to_f32());
+    }
+    let (peak_left, peak_right) = peaks(&stereo);
+    engine.meters.set_input(peak_left, peak_right);
+    let sender = engine.armed.try_lock().and_then(|armed| armed.clone());
+    if let Some(sender) = sender {
+        engine.meters.set_output(peak_left, peak_right);
+        let _ = sender.try_send(WriterMsg::Samples(stereo));
+    } else {
+        engine.meters.set_output(0.0, 0.0);
+    }
+}
+
+#[cfg(windows)]
+fn set_asio_stream_error(engine: &Arc<Engine>, detail: String) {
+    engine.capture_ready.store(false, Ordering::SeqCst);
+    *engine.error.lock() = Some(RecorderError {
+        code: "RECORDING_FAILED".into(),
+        message: "The ASIO playback-loopback stream reported an error.".into(),
+        detail: Some(detail),
+    });
+    if engine.active.lock().is_some() {
+        engine.set_state(RecorderState::Error);
     }
 }
 

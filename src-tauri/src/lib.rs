@@ -1,7 +1,7 @@
 //! NVRBEATS — native Windows engine.
 //!
-//! Capture path: Windows system audio -> selected render endpoint
-//!               -> WASAPI loopback -> local recorder -> WAV on disk.
+//! Capture path: Windows shared output -> WASAPI loopback, or driver-provided
+//! ASIO playback loopback inputs -> local recorder -> WAV on disk.
 //! No Web Audio, no microphone, no cloud.
 
 pub mod capture;
@@ -189,6 +189,7 @@ pub fn run() {
             set_settings,
             commands::get_default_output_device,
             commands::get_output_devices,
+            commands::get_asio_capture_devices,
             commands::get_current_output_device,
             commands::start_recording,
             commands::stop_recording,

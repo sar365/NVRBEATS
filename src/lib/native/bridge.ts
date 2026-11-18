@@ -2,7 +2,8 @@
  * NativeAudioBridge — the boundary between this UI and the native Windows engine.
  *
  * Everything below MUST be implemented natively (Rust/Tauri + Windows APIs):
- *   - WASAPI loopback capture of the selected Windows render endpoint
+ *   - WASAPI loopback of the selected Windows render endpoint, or optional
+ *     ASIO capture of driver-provided playback loopback input channels
  *   - Windows default-output detection and monitoring
  *   - bounded audio buffer + asynchronous WAV writer
  *   - background/system-tray operation
@@ -14,6 +15,7 @@
  */
 import type {
   AudioLevels,
+  AsioCaptureDevice,
   ConversionRequest,
   DiskSpace,
   OutputDevice,
@@ -32,6 +34,7 @@ export interface NativeAudioBridge {
 
   getDefaultOutputDevice(): Promise<OutputDevice | null>;
   getOutputDevices(): Promise<OutputDevice[]>;
+  getAsioCaptureDevices(): Promise<AsioCaptureDevice[]>;
   getCurrentOutputDevice(): Promise<OutputDevice | null>;
   getUnifiedConfig(): Promise<UnifiedConfigResult>;
   saveUnifiedConfig(config: UnifiedAppConfig): Promise<void>;
